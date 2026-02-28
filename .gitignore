@@ -1,0 +1,53 @@
+# ===== 대형 바이너리 / 시뮬 자산 =====
+*.usd
+*.usda
+*.usdc
+*.usdz
+*.stl
+*.dae
+*.obj
+*.fbx
+
+# ===== 학습 체크포인트 =====
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# ===== 데이터셋 (대용량) =====
+datasets/data/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ===== 가상환경 =====
+.venv/
+venv/
+env/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Isaac Sim/Lab 런타임 =====
+*.log
+logs/
+outputs/
+
+# ===== 압축 파일 (다운로드 후 삭제) =====
+*.zip
+*.tar.gz
+*.tar.bz2

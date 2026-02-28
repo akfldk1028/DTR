@@ -1,0 +1,93 @@
+# control.yaml — SO-ARM101 제어 파라미터 스키마
+#
+# 이 파일은 로봇 제어에 사용되는 파라미터를 정의한다.
+# Phase 0: placeholder 값 (실제값은 Phase 3에서 채운다)
+#
+# 스키마 규칙:
+#   value     — 현재 값 (placeholder일 수 있음)
+#   unit      — SI 단위
+#   range     — 유효 범위 [min, max]
+#   description — 파라미터 설명
+
+# --- 제어 주기 ---
+control_frequency:
+  value: 20.0
+  unit: "Hz"
+  range: [10.0, 100.0]
+  description: "제어 루프 주기 (정책 실행 빈도)"
+
+decimation:
+  value: 4
+  unit: "steps"
+  range: [1, 20]
+  description: "시뮬레이션 스텝 / 제어 스텝 비율"
+
+# --- 조인트 드라이브 게인 (Position Control) ---
+# SO-ARM101은 6 DOF (5 회전 + 1 그리퍼)
+drive:
+  stiffness:
+    value: 40.0
+    unit: "N*m/rad"
+    range: [1.0, 200.0]
+    description: "위치 제어 강성 (Kp) — 모든 조인트 공통 기본값"
+
+  damping:
+    value: 4.0
+    unit: "N*m*s/rad"
+    range: [0.1, 50.0]
+    description: "위치 제어 감쇠 (Kd) — 모든 조인트 공통 기본값"
+
+  max_effort:
+    value: 5.0
+    unit: "N*m"
+    range: [0.1, 20.0]
+    description: "최대 토크 제한"
+
+# --- 조인트별 오버라이드 (필요 시) ---
+# Phase 3에서 조인트별 게인을 세분화한다.
+# per_joint_overrides:
+#   shoulder_pan:
+#     stiffness: 60.0
+#     damping: 6.0
+#   gripper:
+#     stiffness: 20.0
+#     damping: 2.0
+
+# --- 지연 (Latency) ---
+action_delay:
+  value: 0
+  unit: "steps"
+  range: [0, 5]
+  description: "액션 적용 지연 (sim-to-real gap 모사용)"
+
+observation_delay:
+  value: 0
+  unit: "steps"
+  range: [0, 5]
+  description: "관측 지연 (sim-to-real gap 모사용)"
+
+# --- 액션 스케일 ---
+action_scale:
+  value: 1.0
+  unit: "dimensionless"
+  range: [0.1, 5.0]
+  description: "정책 출력에 곱하는 스케일 팩터"
+
+# --- 조인트 리밋 ---
+# 실제 값은 URDF에서 읽되, 여기에도 기록하여 교차검증한다.
+# Phase 3에서 실제값으로 채운다.
+joint_limits:
+  position_min:
+    value: [-3.14, -1.57, -1.57, -1.57, -1.57, 0.0]
+    unit: "rad"
+    description: "각 조인트 최소 위치 [6 DOF]"
+
+  position_max:
+    value: [3.14, 1.57, 1.57, 1.57, 1.57, 1.0]
+    unit: "rad"
+    description: "각 조인트 최대 위치 [6 DOF]"
+
+  velocity_max:
+    value: [6.28, 6.28, 6.28, 6.28, 6.28, 6.28]
+    unit: "rad/s"
+    description: "각 조인트 최대 속도 [6 DOF]"

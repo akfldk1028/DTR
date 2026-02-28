@@ -1,0 +1,97 @@
+# physics.yaml — SO-ARM101 물리 파라미터 스키마
+#
+# 이 파일은 시뮬레이션의 물리 파라미터를 정의한다.
+# Phase 0: placeholder 값 (실제값은 Phase 3에서 채운다)
+#
+# 스키마 규칙:
+#   value     — 현재 값 (placeholder일 수 있음)
+#   unit      — SI 단위
+#   range     — 유효 범위 [min, max]
+#   description — 파라미터 설명
+
+# --- 시뮬레이션 기본 설정 ---
+simulation:
+  timestep:
+    value: 0.005
+    unit: "s"
+    range: [0.001, 0.02]
+    description: "시뮬레이션 시간 간격 (dt)"
+
+  gravity:
+    value: [0.0, 0.0, -9.81]
+    unit: "m/s^2"
+    description: "중력 가속도 벡터"
+
+# --- 마찰 (Friction) ---
+friction:
+  static_friction:
+    value: 0.5
+    unit: "dimensionless"
+    range: [0.0, 2.0]
+    description: "정지 마찰 계수"
+
+  dynamic_friction:
+    value: 0.4
+    unit: "dimensionless"
+    range: [0.0, 2.0]
+    description: "운동 마찰 계수"
+
+  restitution:
+    value: 0.0
+    unit: "dimensionless"
+    range: [0.0, 1.0]
+    description: "반발 계수 (0=비탄성, 1=완전탄성)"
+
+# --- 댐핑 (Damping) ---
+damping:
+  joint_damping:
+    value: 0.01
+    unit: "N*m*s/rad"
+    range: [0.0, 1.0]
+    description: "조인트 회전 댐핑"
+
+  linear_damping:
+    value: 0.0
+    unit: "N*s/m"
+    range: [0.0, 1.0]
+    description: "링크 선형 댐핑"
+
+  angular_damping:
+    value: 0.01
+    unit: "N*m*s/rad"
+    range: [0.0, 1.0]
+    description: "링크 각 댐핑"
+
+# --- 질량 (Mass) ---
+mass:
+  total_mass:
+    value: 0.5
+    unit: "kg"
+    range: [0.1, 2.0]
+    description: "로봇 전체 질량 (추정)"
+
+  mass_scale:
+    value: 1.0
+    unit: "dimensionless"
+    range: [0.5, 2.0]
+    description: "질량 스케일 팩터 (도메인 랜덤화용)"
+
+# --- 접촉 (Contact) ---
+contact:
+  contact_offset:
+    value: 0.002
+    unit: "m"
+    range: [0.0, 0.01]
+    description: "접촉 감지 오프셋"
+
+  rest_offset:
+    value: 0.0
+    unit: "m"
+    range: [-0.01, 0.01]
+    description: "안정 접촉 오프셋"
+
+  max_depenetration_velocity:
+    value: 1.0
+    unit: "m/s"
+    range: [0.1, 10.0]
+    description: "최대 관통 해소 속도 (물리 폭발 방지)"
