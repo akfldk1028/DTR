@@ -269,7 +269,9 @@
             "command": "python -c \"content=open('datasets/README.md').read(); checks={'LeRobot v2':'LeRobot v2' in content,'observation.state':'observation.state' in content,'observation.images.camera':'observation.images.camera' in content,'action':'action' in content,'collect_data.py':'collect_data.py' in content,'validate_dataset.py':'validate_dataset.py' in content,'parquet':'parquet' in content.lower(),'info.json':'info.json' in content,'episodes.jsonl':'episodes.jsonl' in content,'tasks.jsonl':'tasks.jsonl' in content}; failed=[k for k,v in checks.items() if not v]; assert not failed, f'Missing: {failed}'; print('datasets/README.md completeness OK')\"",
             "expected": "datasets/README.md completeness OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Verification passed. datasets/README.md is complete and documents all required LeRobot v2 format elements:\n- LeRobot v2 format reference ✓\n- Directory structure (meta/, data/chunk-NNN/, videos/chunk-NNN/) ✓\n- Feature schema table: observation.state (6,) float32, observation.images.camera (480,640,3) video, action (6,) float32 ✓\n- Joint names table (6 DOF: shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper) ✓\n- Meta files documented: info.json (with JSON example), episodes.jsonl (with JSONL example), tasks.jsonl (with JSONL example) ✓\n- Usage examples for collect_data.py (3 CLI examples + collection flow description) ✓\n- Usage examples for validate_dataset.py (3 CLI examples + validation items table + sample output) ✓\n- Parquet file format documented in file format table ✓\n- LeRobotDataset API usage examples (create, add_frame, save_episode, load) ✓\n- Storage rules and related files sections ✓\nNo modifications needed — README was already fully compliant with all 10 verification checks.",
+          "updated_at": "2026-03-01T06:44:01.671590+00:00"
         },
         {
           "id": "subtask-5-2",
@@ -283,7 +285,9 @@
             "command": "python -c \"sr=open('scripts/README.md').read(); pr=open('params/README.md').read(); cl=open('CHANGELOG.md').read(); ref=open('docs/references.md').read(); checks=[]; checks.append(('scripts/README: collect_data','collect_data.py' in sr)); checks.append(('scripts/README: validate_dataset','validate_dataset.py' in sr)); checks.append(('params/README: data_pipeline','data_pipeline.yaml' in pr)); checks.append(('CHANGELOG: Phase 5','Phase 5' in cl)); checks.append(('references: LeRobot v2','dataset_format' in ref or 'v2' in ref.lower())); failed=[name for name,ok in checks if not ok]; assert not failed, f'Missing: {failed}'; print('Supporting docs verification OK')\"",
             "expected": "Supporting docs verification OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "All supporting documentation verified. No modifications needed — all docs were already properly updated by parent task commit 268a926.\n\nVerification results:\n1. scripts/README.md ✅ — Lists collect_data.py (Phase 5, 구현) and validate_dataset.py (Phase 5, 구현) in script table with usage examples\n2. params/README.md ✅ — Lists data_pipeline.yaml (Phase 5) with description in file table\n3. CHANGELOG.md ✅ — Has Phase 5 entry under [0.2.0] with Added (3 new files) and Changed (4 updated files) sections\n4. docs/references.md ✅ — Has LeRobot v2 Dataset Format link (https://huggingface.co/docs/lerobot/en/dataset_format) and LeRobotDataset API reference\n\nVerification command output: 'Supporting docs verification OK'",
+          "updated_at": "2026-03-01T06:45:17.919149+00:00"
         }
       ]
     },
@@ -309,7 +313,9 @@
             "command": "python -c \"gi=open('.gitignore').read(); checks=[]; checks.append(('datasets/*/data/','datasets/*/data/' in gi)); checks.append(('datasets/*/videos/','datasets/*/videos/' in gi)); checks.append(('*.parquet','*.parquet' in gi)); checks.append(('meta NOT excluded','datasets/*/meta/' not in gi)); failed=[name for name,ok in checks if not ok]; assert not failed, f'gitignore issues: {failed}'; print('.gitignore verification OK')\"",
             "expected": ".gitignore verification OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Verification passed. .gitignore already contains all required LeRobot v2 dataset artifact rules:\n- datasets/*/data/ (line 20) — excludes large parquet data chunks ✓\n- datasets/*/videos/ (line 21) — excludes video recordings ✓\n- *.parquet (line 22) — excludes parquet files globally ✓\n- datasets/*/meta/ NOT excluded — meta directories (small JSON metadata) kept in git for reproducibility ✓\n\nIncludes descriptive comments (lines 18-19) explaining the LeRobot v2 nested structure and why meta/ is kept. No modifications needed — .gitignore was already properly configured by parent task.",
+          "updated_at": "2026-03-01T06:46:05.930550+00:00"
         }
       ]
     },
@@ -512,5 +518,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T06:42:27.571811+00:00"
+  "last_updated": "2026-03-01T06:46:05.930560+00:00"
 }
