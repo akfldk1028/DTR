@@ -1,0 +1,283 @@
+# config.yaml — SO-ARM101 RL 학습 설정 (PPO + Isaac Lab)
+#
+# 이 파일은 강화학습 학습에 사용되는 하이퍼파라미터를 정의한다.
+# Phase 6: 학습 루프 — Reinforcement Learning baseline
+# Reference: skrl + Isaac Lab
+#
+# 스키마 규칙:
+#   value     — 현재 값
+#   unit      — SI 단위
+#   range     — 유효 범위 [min, max]
+#   description — 파라미터 설명
+
+# --- 알고리즘 설정 ---
+algorithm:
+  type:
+    value: "PPO"
+    unit: "string"
+    description: "강화학습 알고리즘 (Proximal Policy Optimization)"
+
+  learning_rate:
+    value: 3.0e-4
+    unit: "dimensionless"
+    range: [1.0e-6, 1.0e-2]
+    description: "정책/가치 네트워크 학습률"
+
+  gamma:
+    value: 0.99
+    unit: "dimensionless"
+    range: [0.9, 0.999]
+    description: "할인 계수 (discount factor)"
+
+  lam:
+    value: 0.95
+    unit: "dimensionless"
+    range: [0.8, 1.0]
+    description: "GAE lambda (Generalized Advantage Estimation)"
+
+  clip_range:
+    value: 0.2
+    unit: "dimensionless"
+    range: [0.1, 0.5]
+    description: "PPO 클리핑 범위 (surrogate objective)"
+
+  entropy_coef:
+    value: 0.01
+    unit: "dimensionless"
+    range: [0.0, 0.1]
+    description: "엔트로피 보너스 계수 (탐험 촉진)"
+
+  value_loss_coef:
+    value: 0.5
+    unit: "dimensionless"
+    range: [0.1, 1.0]
+    description: "가치 손실 계수 (value function loss weight)"
+
+  max_grad_norm:
+    value: 1.0
+    unit: "dimensionless"
+    range: [0.1, 10.0]
+    description: "그래디언트 클리핑 최대 노름"
+
+  n_epochs:
+    value: 8
+    unit: "epochs"
+    range: [1, 32]
+    description: "미니배치 에폭 수 (PPO update epochs)"
+
+  n_minibatches:
+    value: 4
+    unit: "count"
+    range: [1, 16]
+    description: "미니배치 분할 수"
+
+  horizon_length:
+    value: 24
+    unit: "steps"
+    range: [8, 128]
+    description: "롤아웃 호라이즌 길이 (steps per rollout)"
+
+# --- 환경 설정 ---
+# params/physics.yaml의 시뮬레이션 설정 참조
+environment:
+  task:
+    value: "Isaac-SO101-Reach-v0"
+    unit: "string"
+    description: "Isaac Lab 작업 이름 (Reach task)"
+
+  num_envs:
+    value: 1024
+    unit: "count"
+    range: [1, 8192]
+    description: "병렬 환경 수 (GPU 가속)"
+
+  episode_length:
+    value: 200
+    unit: "steps"
+    range: [50, 1000]
+    description: "에피소드 최대 길이"
+
+  # params/physics.yaml 참조
+  sim_dt:
+    value: 0.005
+    unit: "s"
+    range: [0.001, 0.02]
+    description: "시뮬레이션 시간 간격 — params/physics.yaml simulation.timestep 참조"
+
+  # params/control.yaml 참조
+  decimation:
+    value: 10
+    unit: "steps"
+    range: [1, 20]
+    description: "시뮬레이션/제어 스텝 비율 — params/control.yaml decimation 참조"
+
+  action_scale:
+    value: 1.0
+    unit: "dimensionless"
+    range: [0.1, 5.0]
+    description: "정책 출력 스케일 팩터 — params/control.yaml action_scale 참조"
+
+  state_dim:
+    value: 6
+    unit: "dimensions"
+    range: [1, 32]
+    description: "상태 공간 차원 (6 DOF 조인트 위치)"
+
+  action_dim:
+    value: 6
+    unit: "dimensions"
+    range: [1, 32]
+    description: "액션 공간 차원 (6 DOF 목표 조인트 위치)"
+
+# --- 학습 설정 ---
+training:
+  max_iterations:
+    value: 1000
+    unit: "iterations"
+    range: [100, 100000]
+    description: "최대 학습 반복 횟수"
+
+  checkpoint_freq:
+    value: 100
+    unit: "iterations"
+    range: [10, 1000]
+    description: "체크포인트 저장 주기"
+
+  log_freq:
+    value: 10
+    unit: "iterations"
+    range: [1, 100]
+    description: "로그 출력 주기"
+
+  output_dir:
+    value: "training/rl/checkpoints"
+    unit: "path"
+    description: "체크포인트 저장 경로"
+
+  seed:
+    value: 42
+    unit: "integer"
+    range: [0, 99999]
+    description: "난수 시드 (재현성)"
+
+  headless:
+    value: true
+    unit: "boolean"
+    description: "헤드리스 모드 (GUI 없이 학습)"
+
+# --- 드라이브 게인 ---
+# params/control.yaml의 drive 설정 참조
+drive:
+  stiffness:
+    value: 40.0
+    unit: "N*m/rad"
+    range: [1.0, 200.0]
+    description: "위치 제어 강성 (Kp) — params/control.yaml drive.stiffness 참조"
+
+  damping:
+    value: 4.0
+    unit: "N*m*s/rad"
+    range: [0.1, 50.0]
+    description: "위치 제어 감쇠 (Kd) — params/control.yaml drive.damping 참조"
+
+  max_effort:
+    value: 5.0
+    unit: "N*m"
+    range: [0.1, 20.0]
+    description: "최대 토크 제한 — params/control.yaml drive.max_effort 참조"
+
+# --- 도메인 랜덤화 (Domain Randomization) ---
+# sim-to-real 전이를 위한 물리 파라미터 랜덤화
+domain_randomization:
+  enabled:
+    value: true
+    unit: "boolean"
+    description: "도메인 랜덤화 활성화 여부"
+
+  # 질량 랜덤화 — params/physics.yaml mass 참조
+  mass_scale:
+    value: 1.0
+    unit: "dimensionless"
+    range: [0.8, 1.2]
+    description: "질량 스케일 범위 ±20% (params/physics.yaml mass.mass_scale 참조)"
+
+  mass_noise_percent:
+    value: 20
+    unit: "%"
+    range: [0, 50]
+    description: "질량 노이즈 비율 (±20%)"
+
+  # 마찰 랜덤화 — params/physics.yaml friction 참조
+  friction_scale:
+    value: 1.0
+    unit: "dimensionless"
+    range: [0.7, 1.3]
+    description: "마찰 계수 스케일 범위 ±30% (params/physics.yaml friction 참조)"
+
+  friction_noise_percent:
+    value: 30
+    unit: "%"
+    range: [0, 50]
+    description: "마찰 노이즈 비율 (±30%)"
+
+  # 액추에이터 게인 랜덤화 — params/control.yaml drive 참조
+  actuator_gain_scale:
+    value: 1.0
+    unit: "dimensionless"
+    range: [0.85, 1.15]
+    description: "액추에이터 게인 스케일 범위 ±15% (params/control.yaml drive 참조)"
+
+  actuator_gain_noise_percent:
+    value: 15
+    unit: "%"
+    range: [0, 50]
+    description: "액추에이터 게인 노이즈 비율 (±15%)"
+
+# --- 보상 설정 (Reward) ---
+reward:
+  reach_position_weight:
+    value: 1.0
+    unit: "dimensionless"
+    range: [0.0, 10.0]
+    description: "위치 도달 보상 가중치"
+
+  action_penalty_weight:
+    value: 0.01
+    unit: "dimensionless"
+    range: [0.0, 1.0]
+    description: "액션 패널티 가중치 (에너지 효율)"
+
+  joint_velocity_penalty_weight:
+    value: 0.005
+    unit: "dimensionless"
+    range: [0.0, 1.0]
+    description: "조인트 속도 패널티 가중치 (부드러운 동작)"
+
+  success_bonus:
+    value: 5.0
+    unit: "dimensionless"
+    range: [0.0, 100.0]
+    description: "목표 도달 성공 보너스"
+
+  success_threshold:
+    value: 0.02
+    unit: "m"
+    range: [0.005, 0.1]
+    description: "목표 도달 성공 임계값 (end-effector 거리)"
+
+# --- 네트워크 설정 ---
+network:
+  policy_hidden_dims:
+    value: [256, 128, 64]
+    unit: "dimensions"
+    description: "정책 네트워크 은닉층 크기"
+
+  value_hidden_dims:
+    value: [256, 128, 64]
+    unit: "dimensions"
+    description: "가치 네트워크 은닉층 크기"
+
+  activation:
+    value: "elu"
+    unit: "string"
+    description: "활성화 함수"
