@@ -32,6 +32,7 @@ Phase: 4
 # This is an Isaac Sim requirement — do not reorder these imports.
 # ---------------------------------------------------------------------------
 import argparse
+import datetime
 import logging
 import math
 import sys
@@ -52,6 +53,8 @@ EXPECTED_JOINT_NAMES = [
     "gripper",
 ]
 NUM_STABILITY_STEPS = 200
+STABILITY_CHECK_INTERVAL = 50
+JOINT_POSITION_BOUND = 100.0  # radians — exceeding indicates physics explosion
 LOG_FILE = "assets/urdf_import_results.log"
 DEFAULT_PARAMS_CONTROL = "params/control.yaml"
 DEFAULT_PARAMS_PHYSICS = "params/physics.yaml"
@@ -735,6 +738,218 @@ def verify_articulation(prim_path: str, control_params: dict) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Physics Stability Test
+# ---------------------------------------------------------------------------
+def run_stability_test(prim_path: str) -> tuple:
+    """Run physics stability test by simulating NUM_STABILITY_STEPS steps.
+
+    Creates an Isaac Sim World, adds the robot articulation, resets the
+    simulation, and steps through the physics. Every STABILITY_CHECK_INTERVAL
+    steps, joint positions are inspected for NaN values or out-of-bound
+    magnitudes (> JOINT_POSITION_BOUND rad), which indicate a physics
+    explosion.
+
+    Args:
+        prim_path: USD prim path of the imported robot.
+
+    Returns:
+        Tuple of (passed: bool, steps_completed: int, warnings: list[str]).
+    """
+    from omni.isaac.core import World
+    from omni.isaac.core.articulations import Articulation
+
+    logger = logging.getLogger("urdf_to_usd")
+    logger.info("=== Physics Stability Test ===")
+    logger.info("Running %d simulation steps...", NUM_STABILITY_STEPS)
+
+    warnings = []
+    steps_completed = 0
+
+    try:
+        # Create simulation world and add articulation
+        world = World()
+        robot = world.scene.add(
+            Articulation(prim_path=prim_path, name="so_arm101"),
+        )
+
+        # Initialize physics simulation
+        world.reset()
+        logger.info("World reset complete — starting stability test")
+
+        for step in range(1, NUM_STABILITY_STEPS + 1):
+            world.step(render=False)
+            steps_completed = step
+
+            # Check joint positions at every STABILITY_CHECK_INTERVAL steps
+            if step % STABILITY_CHECK_INTERVAL == 0:
+                joint_positions = robot.get_joint_positions()
+
+                if joint_positions is None:
+                    msg = f"Step {step}: joint_positions returned None"
+                    logger.error(msg)
+                    warnings.append(msg)
+                    logger.info("Stability test FAILED at step %d", step)
+                    return False, steps_completed, warnings
+
+                # Check for NaN values
+                has_nan = False
+                for i, pos in enumerate(joint_positions):
+                    if math.isnan(pos):
+                        has_nan = True
+                        msg = f"Step {step}: joint[{i}] is NaN"
+                        logger.error(msg)
+                        warnings.append(msg)
+
+                if has_nan:
+                    logger.info("Stability test FAILED at step %d (NaN detected)", step)
+                    return False, steps_completed, warnings
+
+                # Check for physics explosion (absolute value > bound)
+                has_explosion = False
+                for i, pos in enumerate(joint_positions):
+                    if abs(pos) > JOINT_POSITION_BOUND:
+                        has_explosion = True
+                        msg = (
+                            f"Step {step}: joint[{i}] position "
+                            f"{pos:.2f} rad exceeds bound "
+                            f"(±{JOINT_POSITION_BOUND} rad)"
+                        )
+                        logger.error(msg)
+                        warnings.append(msg)
+
+                if has_explosion:
+                    logger.info(
+                        "Stability test FAILED at step %d (explosion detected)", step,
+                    )
+                    return False, steps_completed, warnings
+
+                logger.debug(
+                    "Step %d/%d: joint positions OK (max abs=%.4f rad)",
+                    step,
+                    NUM_STABILITY_STEPS,
+                    max(abs(p) for p in joint_positions),
+                )
+
+    except Exception as exc:
+        msg = f"Stability test exception: {exc}"
+        logger.error(msg, exc_info=True)
+        warnings.append(msg)
+        logger.info("Stability test FAILED (exception at step %d)", steps_completed)
+        return False, steps_completed, warnings
+
+    logger.info(
+        "Stability test PASSED — %d/%d steps completed without issues",
+        steps_completed,
+        NUM_STABILITY_STEPS,
+    )
+    logger.info("=== Physics Stability Test Complete ===")
+    return True, steps_completed, warnings
+
+
+# ---------------------------------------------------------------------------
+# Final Report Writer
+# ---------------------------------------------------------------------------
+def write_final_report(
+    urdf_path: Path,
+    output_path: Path,
+    joint_count: int,
+    joint_names: list,
+    stability_passed: bool,
+    steps_completed: int,
+    warnings: list,
+    skip_verify: bool = False,
+) -> None:
+    """Write a structured final report to the log file.
+
+    The report includes timestamp, input/output paths, joint info,
+    stability test result, file size, and any warnings collected
+    during conversion and verification.
+
+    Args:
+        urdf_path: Input URDF file path.
+        output_path: Output USD file path.
+        joint_count: Number of joints detected.
+        joint_names: List of joint name strings.
+        stability_passed: True if stability test passed.
+        steps_completed: Number of sim steps completed.
+        warnings: List of warning/error messages.
+        skip_verify: Whether verification was skipped.
+    """
+    logger = logging.getLogger("urdf_to_usd")
+
+    # Measure output file size
+    file_size_bytes = 0
+    if output_path.exists():
+        file_size_bytes = output_path.stat().st_size
+    file_size_kb = file_size_bytes / 1024.0
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    stability_result = "SKIPPED" if skip_verify else ("PASS" if stability_passed else "FAIL")
+
+    # Build report lines
+    report_lines = [
+        "",
+        "=" * 60,
+        f"URDF Import Report — {timestamp}",
+        "=" * 60,
+        f"  URDF path:          {urdf_path}",
+        f"  USD path:           {output_path}",
+        f"  Joint count:        {joint_count}",
+        f"  Joint names:        {joint_names}",
+        f"  Stability result:   {stability_result}",
+        f"  Sim steps:          {steps_completed}/{NUM_STABILITY_STEPS}",
+        f"  File size:          {file_size_kb:.1f} KB ({file_size_bytes} bytes)",
+    ]
+
+    if warnings:
+        report_lines.append(f"  Warnings ({len(warnings)}):")
+        for w in warnings:
+            report_lines.append(f"    - {w}")
+    else:
+        report_lines.append("  Warnings:           None")
+
+    report_lines.append("=" * 60)
+
+    report_text = "\n".join(report_lines)
+
+    # Write to log file via logger (goes to both file and stderr)
+    for line in report_lines:
+        logger.info(line)
+
+    # Also append raw text block to the log file for easy parsing
+    log_path = Path(LOG_FILE)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "a", encoding="utf-8") as fh:
+        fh.write(report_text + "\n")
+
+
+# ---------------------------------------------------------------------------
+# Joint Name Collector
+# ---------------------------------------------------------------------------
+def collect_joint_names(prim_path: str) -> list:
+    """Collect revolute joint names from the USD stage.
+
+    Args:
+        prim_path: USD prim path of the imported robot.
+
+    Returns:
+        List of joint name strings.
+    """
+    import omni.usd
+    from pxr import UsdPhysics
+
+    stage = omni.usd.get_context().get_stage()
+    names = []
+    for prim in stage.Traverse():
+        if not str(prim.GetPath()).startswith(prim_path):
+            continue
+        if prim.IsA(UsdPhysics.RevoluteJoint):
+            names.append(prim.GetName())
+    return names
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 def main():
@@ -837,17 +1052,70 @@ def main():
         # ---------------------------------------------------------------
         # Phase 3: Verification & Stability Testing
         # ---------------------------------------------------------------
+        # Collect joint names for the final report
+        joint_names = collect_joint_names(prim_path)
+
+        stability_passed = False
+        steps_completed = 0
+        all_warnings = []
+
         if not args.skip_verify:
+            # Step 1: Articulation verification
             logger.info("Starting post-conversion verification...")
             verification_ok = verify_articulation(prim_path, control_params)
             if not verification_ok:
                 logger.error("Articulation verification FAILED")
+                all_warnings.append("Articulation verification FAILED")
+                # Write report before exiting
+                write_final_report(
+                    urdf_path=urdf_path,
+                    output_path=output_path,
+                    joint_count=joint_count,
+                    joint_names=joint_names,
+                    stability_passed=False,
+                    steps_completed=0,
+                    warnings=all_warnings,
+                    skip_verify=False,
+                )
                 sys.exit(1)
             logger.info("Articulation verification PASSED")
+
+            # Step 2: Physics stability test
+            stability_passed, steps_completed, stability_warnings = (
+                run_stability_test(prim_path)
+            )
+            all_warnings.extend(stability_warnings)
+
+            if not stability_passed:
+                logger.error("Physics stability test FAILED")
+                write_final_report(
+                    urdf_path=urdf_path,
+                    output_path=output_path,
+                    joint_count=joint_count,
+                    joint_names=joint_names,
+                    stability_passed=False,
+                    steps_completed=steps_completed,
+                    warnings=all_warnings,
+                    skip_verify=False,
+                )
+                sys.exit(1)
+            logger.info("Physics stability test PASSED")
         else:
             logger.info("Skipping verification (--skip-verify)")
 
-        # --- Phase 3b: Stability test will be added here ---
+        # ---------------------------------------------------------------
+        # Final Report
+        # ---------------------------------------------------------------
+        write_final_report(
+            urdf_path=urdf_path,
+            output_path=output_path,
+            joint_count=joint_count,
+            joint_names=joint_names,
+            stability_passed=stability_passed,
+            steps_completed=steps_completed,
+            warnings=all_warnings,
+            skip_verify=args.skip_verify,
+        )
 
     except Exception as exc:
         logger.error("Fatal error: %s", exc, exc_info=True)
