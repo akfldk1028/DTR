@@ -413,13 +413,15 @@ def run_validation(args: argparse.Namespace) -> bool:
         dataset_path = Path(args.dataset_path)
     else:
         output_dir = _get_value(pipeline_params["dataset"]["output_dir"])
-        repo_id = args.repo_id or _get_value(
-            pipeline_params["dataset"]["repo_id"]
+        repo_id = (
+            args.repo_id if args.repo_id is not None
+            else _get_value(pipeline_params["dataset"]["repo_id"])
         )
         dataset_path = resolve_dataset_path(repo_id, output_dir)
 
-    repo_id = args.repo_id or _get_value(
-        pipeline_params["dataset"]["repo_id"]
+    repo_id = (
+        args.repo_id if args.repo_id is not None
+        else _get_value(pipeline_params["dataset"]["repo_id"])
     )
 
     logger.info("=== SO-ARM101 Dataset Validation ===")
@@ -467,8 +469,9 @@ def run_validation(args: argparse.Namespace) -> bool:
 
     # --- Replay validation (optional) ---
     if args.replay:
-        task_name = args.task_name or _get_value(
-            pipeline_params["isaac_sim"]["task"]
+        task_name = (
+            args.task_name if args.task_name is not None
+            else _get_value(pipeline_params["isaac_sim"]["task"])
         )
         num_envs = _get_value(pipeline_params["isaac_sim"]["num_envs"])
         tolerance = args.tolerance

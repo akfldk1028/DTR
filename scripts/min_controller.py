@@ -69,7 +69,7 @@ def main():
     log = setup_logger(log_path)
 
     if not os.path.exists(usd_path):
-        log.info(f"[ERROR] USD file not found: {usd_path}")
+        log.error("USD file not found: %s", usd_path)
         sys.exit(1)
 
     log.info("=== SO-ARM101 Minimal Controller ===")
@@ -86,7 +86,6 @@ def main():
     from pxr import Usd, UsdPhysics, UsdGeom
     from omni.isaac.core import World
     from omni.isaac.core.articulations import Articulation
-    from isaacsim.core.prims import SingleArticulation
     from omni.isaac.core.utils.types import ArticulationAction
     import numpy as np
 
@@ -106,7 +105,7 @@ def main():
             break
 
     if art_root_path is None:
-        log.info("[ERROR] No ArticulationRootAPI found in USD")
+        log.error("No ArticulationRootAPI found in USD")
         for prim in stage.Traverse():
             if prim.IsA(UsdPhysics.RevoluteJoint):
                 log.info(f"       Found joint: {prim.GetPath()}")
@@ -151,7 +150,7 @@ def main():
         robot.apply_action(action)
         log.info("       Targets applied via apply_action() OK")
     except Exception as e:
-        log.info(f"       [ERROR] apply_action failed: {e}")
+        log.error("apply_action failed: %s", e)
         import traceback
         log.info(traceback.format_exc())
         simulation_app.close()
@@ -171,7 +170,7 @@ def main():
                 errors.append(max_error_deg)
                 log.info(f"         Step {step:4d}: max_error={max_error_deg:.2f}° mean_error={mean_error_deg:.2f}°")
     except Exception as e:
-        log.info(f"       [ERROR] Simulation loop failed at step: {e}")
+        log.error("Simulation loop failed at step: %s", e)
         import traceback
         log.info(traceback.format_exc())
 
@@ -182,7 +181,7 @@ def main():
         final_error = np.abs(final_pos - target_pos)
         final_max_error = math.degrees(np.max(final_error))
     except Exception as e:
-        log.info(f"       [ERROR] Could not get final positions: {e}")
+        log.error("Could not get final positions: %s", e)
         final_max_error = 999.0
 
     converged = final_max_error < 5.0  # 5 degree threshold

@@ -273,22 +273,25 @@ def run_training(args: argparse.Namespace) -> None:
     pipeline_params = load_pipeline_params()
 
     # Resolve effective values (CLI overrides > YAML defaults)
-    repo_id = args.repo_id or _get_value(
-        training_cfg["dataset"]["repo_id"]
+    repo_id = (
+        args.repo_id if args.repo_id is not None
+        else _get_value(training_cfg["dataset"]["repo_id"])
     )
-    batch_size = args.batch_size or _get_value(
-        training_cfg["training"]["batch_size"]
+    batch_size = (
+        args.batch_size if args.batch_size is not None
+        else _get_value(training_cfg["training"]["batch_size"])
     )
-    total_steps = args.steps or _get_value(
-        training_cfg["training"]["steps"]
+    total_steps = (
+        args.steps if args.steps is not None
+        else _get_value(training_cfg["training"]["steps"])
     )
-    save_freq = args.save_freq or _get_value(
-        training_cfg["training"]["save_freq"]
+    save_freq = (
+        args.save_freq if args.save_freq is not None
+        else _get_value(training_cfg["training"]["save_freq"])
     )
     output_dir = Path(
-        args.output_dir or _get_value(
-            training_cfg["training"]["output_dir"]
-        )
+        args.output_dir if args.output_dir is not None
+        else _get_value(training_cfg["training"]["output_dir"])
     )
 
     logger.info("=== SO-ARM101 ACT IL Training ===")
@@ -324,6 +327,10 @@ def run_training(args: argparse.Namespace) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     policy = policy.to(device)
     logger.info("Device: %s", device)
+
+    # Apply CLI learning rate override if provided
+    if args.lr is not None:
+        training_cfg["training"]["optimizer"]["lr"] = {"value": args.lr}
 
     # Create optimizer
     optimizer = create_optimizer(policy, training_cfg)

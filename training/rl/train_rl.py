@@ -122,6 +122,28 @@ def load_control_params() -> dict:
 # ---------------------------------------------------------------------------
 if SKRL_AVAILABLE and TORCH_AVAILABLE:
 
+    def _get_activation(name: str):
+        """Return a PyTorch activation module by name.
+
+        Args:
+            name: Activation function name (elu, relu, tanh, selu).
+
+        Returns:
+            torch.nn activation module instance.
+        """
+        activations = {
+            "elu": torch.nn.ELU(),
+            "relu": torch.nn.ReLU(),
+            "tanh": torch.nn.Tanh(),
+            "selu": torch.nn.SELU(),
+        }
+        if name.lower() not in activations:
+            logger.warning(
+                "Unknown activation '%s', falling back to ELU", name
+            )
+            return torch.nn.ELU()
+        return activations[name.lower()]
+
     class PolicyNetwork(GaussianMixin, Model):
         """Gaussian policy network for PPO (actor).
 
@@ -215,29 +237,6 @@ if SKRL_AVAILABLE and TORCH_AVAILABLE:
         def compute(self, inputs, role):
             """Forward pass — compute state value from observations."""
             return self.net(inputs["states"]), {}
-
-
-def _get_activation(name: str):
-    """Return a PyTorch activation module by name.
-
-    Args:
-        name: Activation function name (elu, relu, tanh, selu).
-
-    Returns:
-        torch.nn activation module instance.
-    """
-    activations = {
-        "elu": torch.nn.ELU(),
-        "relu": torch.nn.ReLU(),
-        "tanh": torch.nn.Tanh(),
-        "selu": torch.nn.SELU(),
-    }
-    if name.lower() not in activations:
-        logger.warning(
-            "Unknown activation '%s', falling back to ELU", name
-        )
-        return torch.nn.ELU()
-    return activations[name.lower()]
 
 
 def create_environment(task: str, num_envs: int, headless: bool):
@@ -410,25 +409,28 @@ def run_training(args: argparse.Namespace) -> None:
     control_params = load_control_params()
 
     # Resolve effective values (CLI overrides > YAML defaults)
-    task = args.task or _get_value(
-        rl_cfg["environment"]["task"]
+    task = (
+        args.task if args.task is not None
+        else _get_value(rl_cfg["environment"]["task"])
     )
-    num_envs = args.num_envs or _get_value(
-        rl_cfg["environment"]["num_envs"]
+    num_envs = (
+        args.num_envs if args.num_envs is not None
+        else _get_value(rl_cfg["environment"]["num_envs"])
     )
     headless = args.headless if args.headless is not None else _get_value(
         rl_cfg["training"]["headless"]
     )
-    max_iterations = args.max_iterations or _get_value(
-        rl_cfg["training"]["max_iterations"]
+    max_iterations = (
+        args.max_iterations if args.max_iterations is not None
+        else _get_value(rl_cfg["training"]["max_iterations"])
     )
-    checkpoint_freq = args.checkpoint_freq or _get_value(
-        rl_cfg["training"]["checkpoint_freq"]
+    checkpoint_freq = (
+        args.checkpoint_freq if args.checkpoint_freq is not None
+        else _get_value(rl_cfg["training"]["checkpoint_freq"])
     )
     output_dir = Path(
-        args.output_dir or _get_value(
-            rl_cfg["training"]["output_dir"]
-        )
+        args.output_dir if args.output_dir is not None
+        else _get_value(rl_cfg["training"]["output_dir"])
     )
     seed = args.seed if args.seed is not None else _get_value(
         rl_cfg["training"]["seed"]

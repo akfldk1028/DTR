@@ -33,7 +33,10 @@ import logging
 import os
 from abc import ABC, abstractmethod
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 # Portable path resolution
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

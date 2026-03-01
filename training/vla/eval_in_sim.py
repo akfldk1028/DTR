@@ -598,20 +598,28 @@ def main() -> None:
         model_cfg = eval_params.get("model", {})
         eval_cfg = eval_params.get("evaluation", {})
 
-        model_type = args.model or _get_value(
-            model_cfg.get("type", {"value": "dummy"})
+        model_type = (
+            args.model if args.model is not None
+            else _get_value(model_cfg.get("type", {"value": "dummy"}))
         )
-        checkpoint_path = args.checkpoint or _get_value(
-            model_cfg.get("checkpoint_path", {"value": ""})
-        )
-        instruction = args.instruction or _get_value(
-            eval_cfg.get(
-                "instruction",
-                {"value": "pick up the orange from the table"},
+        checkpoint_path = (
+            args.checkpoint if args.checkpoint is not None
+            else _get_value(
+                model_cfg.get("checkpoint_path", {"value": ""})
             )
         )
-        num_episodes = args.num_episodes or _get_value(
-            eval_cfg.get("num_episodes", {"value": 10})
+        instruction = (
+            args.instruction if args.instruction is not None
+            else _get_value(eval_cfg.get(
+                "instruction",
+                {"value": "pick up the orange from the table"},
+            ))
+        )
+        num_episodes = (
+            args.num_episodes if args.num_episodes is not None
+            else _get_value(
+                eval_cfg.get("num_episodes", {"value": 10})
+            )
         )
         dry_run = args.dry_run or _get_value(
             eval_cfg.get("dry_run", {"value": False})

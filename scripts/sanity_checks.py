@@ -86,7 +86,7 @@ def main():
     log = setup_logger(log_path)
 
     if not os.path.exists(usd_path):
-        log.info(f"[ERROR] USD file not found: {usd_path}")
+        log.error("USD file not found: %s", usd_path)
         sys.exit(1)
 
     log.info("=== SO-ARM101 Sanity Check ===")
@@ -115,7 +115,7 @@ def main():
     stage = omni.usd.get_context().get_stage()
 
     if stage is None:
-        log.info("[ERROR] Failed to load USD stage")
+        log.error("Failed to load USD stage")
         simulation_app.close()
         sys.exit(1)
     log.info(f"       Stage loaded: {stage.GetRootLayer().identifier}")

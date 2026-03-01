@@ -260,21 +260,26 @@ def run_collection(args: argparse.Namespace) -> None:
     control_params = load_control_params()
 
     # Resolve effective values (CLI overrides > YAML defaults)
-    task_name = args.task or _get_value(
+    task_name = args.task if args.task is not None else _get_value(
         pipeline_params["isaac_sim"]["task"]
     )
-    repo_id = args.repo_id or _get_value(
+    repo_id = args.repo_id if args.repo_id is not None else _get_value(
         pipeline_params["dataset"]["repo_id"]
     )
-    fps = args.fps or _get_value(pipeline_params["fps"])
-    num_episodes = args.num_episodes or _get_value(
-        pipeline_params["episode"]["num_episodes"]
+    fps = args.fps if args.fps is not None else _get_value(
+        pipeline_params["fps"]
     )
-    num_envs = args.num_envs or _get_value(
-        pipeline_params["isaac_sim"]["num_envs"]
+    num_episodes = (
+        args.num_episodes if args.num_episodes is not None
+        else _get_value(pipeline_params["episode"]["num_episodes"])
     )
-    task_description = args.task_description or _get_value(
-        pipeline_params["dataset"]["task_name"]
+    num_envs = (
+        args.num_envs if args.num_envs is not None
+        else _get_value(pipeline_params["isaac_sim"]["num_envs"])
+    )
+    task_description = (
+        args.task_description if args.task_description is not None
+        else _get_value(pipeline_params["dataset"]["task_name"])
     )
     max_steps = _get_value(pipeline_params["episode"]["max_steps"])
     camera_name = _get_value(pipeline_params["camera"]["camera_name"])

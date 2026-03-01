@@ -89,6 +89,7 @@ logger = logging.getLogger(__name__)
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PARAMS_DIR = _SCRIPT_DIR.parent.parent / "params"
 _CONTROL_YAML = _PARAMS_DIR / "control.yaml"
+_PHYSICS_YAML = _PARAMS_DIR / "physics.yaml"
 _RL_CONFIG_YAML = _SCRIPT_DIR / "config.yaml"
 
 
@@ -142,6 +143,21 @@ def load_control_params() -> dict:
     return params
 
 
+def load_physics_params() -> dict:
+    """Load params/physics.yaml and extract relevant physics params.
+
+    Returns:
+        Dictionary with physics simulation parameters.
+    """
+    raw = _load_yaml(_PHYSICS_YAML)
+    contact = raw.get("contact", {})
+    return {
+        "max_depenetration_velocity": _get_value(
+            contact.get("max_depenetration_velocity", {"value": 1.0})
+        ),
+    }
+
+
 def load_rl_config() -> dict:
     """Load training/rl/config.yaml and return raw dict."""
     raw = _load_yaml(_RL_CONFIG_YAML)
@@ -152,6 +168,7 @@ def load_rl_config() -> dict:
 # Load parameters at module level (safe — only reads YAML)
 # ---------------------------------------------------------------------------
 _CTRL = load_control_params()
+_PHYS = load_physics_params()
 _RL_CFG = load_rl_config()
 
 # Drive gains from params/control.yaml
@@ -197,7 +214,7 @@ if ISAAC_LAB_AVAILABLE:
             activate_contact_sensors=False,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,
-                max_depenetration_velocity=5.0,
+                max_depenetration_velocity=_PHYS["max_depenetration_velocity"],
             ),
             articulation_props=sim_utils.ArticulationRootPropertiesCfg(
                 enabled_self_collisions=False,

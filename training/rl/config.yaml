@@ -166,25 +166,8 @@ training:
     description: "헤드리스 모드 (GUI 없이 학습)"
 
 # --- 드라이브 게인 ---
-# params/control.yaml의 drive 설정 참조
-drive:
-  stiffness:
-    value: 40.0
-    unit: "N*m/rad"
-    range: [1.0, 200.0]
-    description: "위치 제어 강성 (Kp) — params/control.yaml drive.stiffness 참조"
-
-  damping:
-    value: 4.0
-    unit: "N*m*s/rad"
-    range: [0.1, 50.0]
-    description: "위치 제어 감쇠 (Kd) — params/control.yaml drive.damping 참조"
-
-  max_effort:
-    value: 5.0
-    unit: "N*m"
-    range: [0.1, 20.0]
-    description: "최대 토크 제한 — params/control.yaml drive.max_effort 참조"
+# SSOT: params/control.yaml에서 로드 (so101_env.py → load_control_params())
+# 이 파일에 값을 중복 정의하지 않는다.
 
 # --- 도메인 랜덤화 (Domain Randomization) ---
 # sim-to-real 전이를 위한 물리 파라미터 랜덤화
