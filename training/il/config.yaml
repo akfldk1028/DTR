@@ -1,0 +1,130 @@
+# config.yaml — ACT (Action Chunking with Transformers) IL 학습 설정
+#
+# 이 파일은 ACT 정책 학습에 사용되는 하이퍼파라미터를 정의한다.
+# Phase 6: 학습 루프 — Imitation Learning baseline
+# Reference: arxiv:2304.13705 (ALOHA)
+#
+# 스키마 규칙:
+#   value     — 현재 값
+#   unit      — SI 단위
+#   range     — 유효 범위 [min, max]
+#   description — 파라미터 설명
+
+# --- 정책 설정 (ACT) ---
+policy:
+  type:
+    value: "act"
+    unit: "string"
+    description: "정책 타입 (ACT: Action Chunking with Transformers)"
+
+  chunk_size:
+    value: 100
+    unit: "steps"
+    range: [1, 500]
+    description: "액션 청킹 윈도우 크기 (한 번에 예측하는 액션 수)"
+
+  n_obs_steps:
+    value: 1
+    unit: "steps"
+    range: [1, 10]
+    description: "관측 히스토리 길이 (현재 관측만 사용)"
+
+  dim_model:
+    value: 512
+    unit: "dimensions"
+    range: [64, 2048]
+    description: "Transformer 모델 임베딩 차원"
+
+  n_heads:
+    value: 8
+    unit: "count"
+    range: [1, 16]
+    description: "멀티헤드 어텐션 헤드 수"
+
+  n_encoder_layers:
+    value: 4
+    unit: "layers"
+    range: [1, 12]
+    description: "Transformer 인코더 레이어 수"
+
+  n_decoder_layers:
+    value: 7
+    unit: "layers"
+    range: [1, 12]
+    description: "Transformer 디코더 레이어 수"
+
+# --- 학습 설정 ---
+training:
+  batch_size:
+    value: 8
+    unit: "samples"
+    range: [1, 128]
+    description: "미니배치 크기"
+
+  steps:
+    value: 100000
+    unit: "steps"
+    range: [1000, 1000000]
+    description: "총 학습 스텝 수"
+
+  save_freq:
+    value: 25000
+    unit: "steps"
+    range: [1000, 100000]
+    description: "체크포인트 저장 주기"
+
+  optimizer:
+    type:
+      value: "AdamW"
+      unit: "string"
+      description: "옵티마이저 타입"
+
+    lr:
+      value: 1.0e-5
+      unit: "dimensionless"
+      range: [1.0e-7, 1.0e-2]
+      description: "학습률 (AdamW)"
+
+    weight_decay:
+      value: 1.0e-4
+      unit: "dimensionless"
+      range: [0.0, 1.0e-1]
+      description: "가중치 감쇠 (AdamW)"
+
+  output_dir:
+    value: "training/il/checkpoints"
+    unit: "path"
+    description: "체크포인트 저장 경로"
+
+# --- 데이터셋 설정 ---
+# params/data_pipeline.yaml의 dataset.repo_id 참조
+dataset:
+  repo_id:
+    value: "local/so101_teleop"
+    unit: "string"
+    description: "LeRobot 데이터셋 리포지토리 ID (params/data_pipeline.yaml 참조)"
+
+  fps:
+    value: 30
+    unit: "Hz"
+    range: [10, 60]
+    description: "데이터셋 프레임 레이트 (params/data_pipeline.yaml 참조)"
+
+# --- 환경 설정 ---
+env:
+  type:
+    value: "gym_manipulator"
+    unit: "string"
+    description: "LeRobot 환경 타입"
+
+  state_dim:
+    value: 6
+    unit: "dimensions"
+    range: [1, 32]
+    description: "상태 공간 차원 (6 DOF 조인트 위치)"
+
+  action_dim:
+    value: 6
+    unit: "dimensions"
+    range: [1, 32]
+    description: "액션 공간 차원 (6 DOF 목표 조인트 위치)"
