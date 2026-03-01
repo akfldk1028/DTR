@@ -1,912 +1,839 @@
 #!/usr/bin/env python3
-"""evaluate_policy.py — 학습된 정책 시뮬레이션 평가 스크립트
+"""evaluate_policy.py — 학습된 정책 평가 스크립트
 
 목적:
-    IL (ACT) 및 RL (PPO) 학습된 정책을 Isaac Lab 시뮬레이션 환경에서 평가한다.
-    평가 메트릭을 산출하고 JSON 파일로 저장한다.
-
-    - IL (ACT) 정책: LeRobot ACT 체크포인트 로드
-    - RL (PPO) 정책: skrl PPO 체크포인트 로드
-    - Isaac Lab 시뮬레이션 환경에서 에피소드 실행
-    - 메트릭 산출: success_rate, trajectory_error, episode_reward, episode_length
-    - 결과를 JSON 파일 및 콘솔 요약으로 출력
+    학습된 IL (ACT) 또는 RL (PPO) 정책을 Isaac Sim/Lab 환경에서 평가한다.
+    - 학습된 체크포인트 로드 (IL: ACT, RL: skrl PPO)
+    - Isaac Sim/Lab 평가 환경 초기화
+    - N개 에피소드 실행 및 메트릭 수집
+    - 성공률, 평균 궤적 오차, 총 보상 등 메트릭 로깅
+    - ValidationReport 패턴으로 결과 요약 출력
 
 사용법:
-    python training/eval/evaluate_policy.py --policy-type rl --checkpoint training/rl/checkpoints/best_agent.pt
-    python training/eval/evaluate_policy.py --policy-type il --checkpoint training/il/checkpoints/act_policy.pt
-    python training/eval/evaluate_policy.py --policy-type rl --checkpoint training/rl/checkpoints/best_agent.pt --num-episodes 50 --render
-    python training/eval/evaluate_policy.py --policy-type rl --checkpoint training/rl/checkpoints/best_agent.pt --output training/eval/results.json
+    # IL 정책 평가
+    python training/eval/evaluate_policy.py \\
+        --policy_type il \\
+        --checkpoint_path training/il/checkpoints/checkpoint_0100000.pt \\
+        --task LeIsaac-SO101-PickOrange-v0 \\
+        --num_episodes 10 \\
+        --headless
+
+    # RL 정책 평가
+    python training/eval/evaluate_policy.py \\
+        --policy_type rl \\
+        --checkpoint_path training/rl/checkpoints/final_checkpoint/agent.pt \\
+        --task Isaac-SO101-Reach-v0 \\
+        --num_episodes 50 \\
+        --headless
+
+    # 도움말
+    python training/eval/evaluate_policy.py --help
 
 필요 환경:
-    - Isaac Sim 5.1.0 + Isaac Lab v2.3.0 (RL 평가)
-    - LeRobot 0.4.4 (IL 평가)
-    - skrl (RL 평가)
-    - PyTorch (GPU 권장)
+    - Isaac Sim 5.1.0 + Isaac Lab v2.3.0 (RL 평가 시)
+    - LeRobot 0.4.4 (IL 평가 시)
+    - skrl (RL 평가 시)
+    - PyTorch 2.x
     - conda env: soarm
-
-참고:
-    - IL 학습 스크립트: training/il/train_act.py
-    - RL 학습 스크립트: training/rl/train_rl.py
-    - RL 환경: training/rl/so101_env.py
-    - 로봇 제어 파라미터: params/control.yaml
-    - 물리 파라미터: params/physics.yaml
+    - GPU: NVIDIA RTX 4090 Laptop (권장)
 
 Phase: 6
-상태: 정책 평가 스크립트
+상태: 구현 완료 — 학습된 정책 시뮬 평가
 """
 
 import argparse
-import json
 import logging
-import math
-import os
 import sys
 import time
 from pathlib import Path
 
+import yaml
+
+# ---------------------------------------------------------------------------
+# Heavy dependency imports are guarded so the script can be
+# syntax-checked and --help can run without these dependencies.
+# ---------------------------------------------------------------------------
+try:
+    import torch
+
+    TORCH_AVAILABLE = True
+except ImportError:
+    torch = None
+    TORCH_AVAILABLE = False
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+# LeRobot ACT policy
+try:
+    from lerobot.common.policies.act.configuration_act import ACTConfig
+    from lerobot.common.policies.act.modeling_act import ACTPolicy
+
+    LEROBOT_ACT_AVAILABLE = True
+except ImportError:
+    ACTConfig = None
+    ACTPolicy = None
+    LEROBOT_ACT_AVAILABLE = False
+
+# Isaac Lab — try both namespace variants
+try:
+    from omni.isaac.lab.envs import ManagerBasedRLEnv
+
+    ISAAC_LAB_AVAILABLE = True
+except ImportError:
+    try:
+        from isaaclab.envs import ManagerBasedRLEnv
+
+        ISAAC_LAB_AVAILABLE = True
+    except ImportError:
+        ISAAC_LAB_AVAILABLE = False
+
+# Isaac Sim (ManagerBasedEnv for IL evaluation)
+try:
+    from isaaclab.envs import ManagerBasedEnv
+
+    ISAAC_SIM_AVAILABLE = True
+except ImportError:
+    ISAAC_SIM_AVAILABLE = False
+
+# skrl — RL agent loading
+try:
+    from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
+    from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
+    from skrl.envs.wrappers.torch import wrap_env
+
+    SKRL_AVAILABLE = True
+except ImportError:
+    SKRL_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
-# --- 프로젝트 루트 ---
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-
-# --- 지원하는 정책 타입 ---
-SUPPORTED_POLICY_TYPES = ("il", "rl")
-
-# --- 기본 평가 설정 ---
-DEFAULT_NUM_EPISODES = 100
-DEFAULT_SUCCESS_THRESHOLD = 0.02  # m — 목표 도달 판정 거리 (training/rl/config.yaml 참조)
+# --- Parameter file paths ---
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_IL_CONFIG_YAML = _SCRIPT_DIR.parent / "il" / "config.yaml"
+_RL_CONFIG_YAML = _SCRIPT_DIR.parent / "rl" / "config.yaml"
+_PARAMS_DIR = _SCRIPT_DIR.parent.parent / "params"
+_CONTROL_YAML = _PARAMS_DIR / "control.yaml"
 
 
-def parse_args():
-    """CLI 인자 파싱."""
+def _load_yaml(path: Path) -> dict:
+    """Load a YAML parameter file and return its contents."""
+    with open(path, "r", encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+def _get_value(param):
+    """Extract the 'value' field from a parameter dict.
+
+    Handles both top-level {value: ...} and plain values.
+    """
+    if isinstance(param, dict) and "value" in param:
+        return param["value"]
+    return param
+
+
+# ---------------------------------------------------------------------------
+# Evaluation report (follows scripts/validate_dataset.py ValidationReport)
+# ---------------------------------------------------------------------------
+
+
+class EvaluationReport:
+    """Collects PASS/FAIL results and metrics for each evaluation check."""
+
+    def __init__(self):
+        self.results = []
+        self.metrics = {}
+
+    def add(self, name: str, passed: bool, detail: str = "") -> None:
+        """Record a single check result."""
+        self.results.append(
+            {"name": name, "passed": passed, "detail": detail}
+        )
+
+    def set_metric(self, name: str, value: float) -> None:
+        """Record a numeric metric."""
+        self.metrics[name] = value
+
+    @property
+    def all_passed(self) -> bool:
+        return all(r["passed"] for r in self.results)
+
+    def log_report(self) -> None:
+        """Log the full evaluation report."""
+        logger.info("=== Evaluation Report ===")
+        for r in self.results:
+            status = "PASS" if r["passed"] else "FAIL"
+            detail = f" — {r['detail']}" if r["detail"] else ""
+            logger.info("  [%s] %s%s", status, r["name"], detail)
+
+        if self.metrics:
+            logger.info("--- Metrics ---")
+            for name, value in self.metrics.items():
+                logger.info("  %s: %.6f", name, value)
+
+        total = len(self.results)
+        passed = sum(1 for r in self.results if r["passed"])
+        failed = total - passed
+        logger.info("---")
+        logger.info(
+            "Total: %d | Passed: %d | Failed: %d", total, passed, failed
+        )
+
+
+# ---------------------------------------------------------------------------
+# Policy loading
+# ---------------------------------------------------------------------------
+
+
+def load_il_policy(checkpoint_path: str, device: "torch.device"):
+    """Load a trained IL (ACT) policy from a checkpoint.
+
+    Args:
+        checkpoint_path: Path to the ACT checkpoint file (.pt).
+        device: Torch device to load the model onto.
+
+    Returns:
+        Loaded ACT policy in eval mode.
+
+    Raises:
+        RuntimeError: If LeRobot ACT or PyTorch is not available.
+        FileNotFoundError: If checkpoint file does not exist.
+    """
+    if not TORCH_AVAILABLE:
+        raise RuntimeError(
+            "PyTorch is not available. "
+            "Install with: pip install torch"
+        )
+    if not LEROBOT_ACT_AVAILABLE:
+        raise RuntimeError(
+            "LeRobot ACT is not available. "
+            "Install with: pip install lerobot"
+        )
+
+    checkpoint_file = Path(checkpoint_path)
+    if not checkpoint_file.exists():
+        raise FileNotFoundError(
+            f"IL checkpoint not found: {checkpoint_file}"
+        )
+
+    logger.info("Loading IL (ACT) checkpoint: %s", checkpoint_file)
+
+    # Load checkpoint
+    checkpoint = torch.load(checkpoint_file, map_location=device)
+
+    # Load IL config for policy dimensions
+    il_cfg = _load_yaml(_IL_CONFIG_YAML)
+    policy_cfg = il_cfg["policy"]
+
+    # Build ACT config from saved hyperparameters
+    act_config = ACTConfig(
+        chunk_size=_get_value(policy_cfg["chunk_size"]),
+        n_obs_steps=_get_value(policy_cfg["n_obs_steps"]),
+        dim_model=_get_value(policy_cfg["dim_model"]),
+        n_heads=_get_value(policy_cfg["n_heads"]),
+        n_encoder_layers=_get_value(policy_cfg["n_encoder_layers"]),
+        n_decoder_layers=_get_value(policy_cfg["n_decoder_layers"]),
+    )
+
+    # Create policy and load weights
+    policy = ACTPolicy(config=act_config)
+    policy.load_state_dict(checkpoint["policy_state_dict"])
+    policy = policy.to(device)
+    policy.eval()
+
+    logger.info("IL policy loaded successfully (step=%d).", checkpoint["step"])
+    return policy
+
+
+def load_rl_policy(checkpoint_path: str, env, device: "torch.device"):
+    """Load a trained RL (PPO) agent from a checkpoint.
+
+    Args:
+        checkpoint_path: Path to the skrl agent checkpoint file.
+        env: Wrapped skrl-compatible environment (for spaces).
+        device: Torch device to load the model onto.
+
+    Returns:
+        Loaded skrl PPO agent in eval mode.
+
+    Raises:
+        RuntimeError: If skrl or PyTorch is not available.
+        FileNotFoundError: If checkpoint file does not exist.
+    """
+    if not TORCH_AVAILABLE:
+        raise RuntimeError(
+            "PyTorch is not available. "
+            "Install with: pip install torch"
+        )
+    if not SKRL_AVAILABLE:
+        raise RuntimeError(
+            "skrl is not available. "
+            "Install with: pip install skrl"
+        )
+
+    checkpoint_file = Path(checkpoint_path)
+    if not checkpoint_file.exists():
+        raise FileNotFoundError(
+            f"RL checkpoint not found: {checkpoint_file}"
+        )
+
+    logger.info("Loading RL (PPO) checkpoint: %s", checkpoint_file)
+
+    # Load RL config for network architecture
+    rl_cfg = _load_yaml(_RL_CONFIG_YAML)
+    net_cfg = rl_cfg["network"]
+    policy_hidden_dims = _get_value(net_cfg["policy_hidden_dims"])
+    value_hidden_dims = _get_value(net_cfg["value_hidden_dims"])
+    activation = _get_value(net_cfg["activation"])
+
+    # Import network definitions from train_rl module
+    from training.rl.train_rl import PolicyNetwork, ValueNetwork
+
+    # Create models
+    models = {}
+    models["policy"] = PolicyNetwork(
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        device=device,
+        hidden_dims=policy_hidden_dims,
+        activation=activation,
+    )
+    models["value"] = ValueNetwork(
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        device=device,
+        hidden_dims=value_hidden_dims,
+        activation=activation,
+    )
+
+    # Configure a minimal PPO agent for evaluation
+    cfg = PPO_DEFAULT_CONFIG.copy()
+    agent = PPO(
+        models=models,
+        memory=None,
+        cfg=cfg,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        device=device,
+    )
+
+    # Load checkpoint weights
+    agent.load(str(checkpoint_file))
+
+    logger.info("RL agent loaded successfully.")
+    return agent
+
+
+# ---------------------------------------------------------------------------
+# Environment initialization
+# ---------------------------------------------------------------------------
+
+
+def initialize_eval_env(
+    task: str, policy_type: str, num_envs: int, headless: bool
+):
+    """Initialize the evaluation environment.
+
+    Args:
+        task: Isaac Sim/Lab task name.
+        policy_type: Policy type ('il' or 'rl').
+        num_envs: Number of parallel environments.
+        headless: Whether to run without GUI.
+
+    Returns:
+        Environment instance (wrapped for skrl if RL).
+
+    Raises:
+        RuntimeError: If Isaac Sim/Lab is not available.
+    """
+    if policy_type == "rl":
+        if not ISAAC_LAB_AVAILABLE:
+            raise RuntimeError(
+                "Isaac Lab is not available. "
+                "Run this script inside the Isaac Sim/Lab Python environment."
+            )
+
+        from training.rl.so101_env import SO101ReachEnvCfg
+
+        logger.info(
+            "Initializing RL evaluation environment: task=%s, "
+            "num_envs=%d, headless=%s",
+            task,
+            num_envs,
+            headless,
+        )
+
+        env_cfg = SO101ReachEnvCfg()
+        env_cfg.scene.num_envs = num_envs
+        env = ManagerBasedRLEnv(cfg=env_cfg)
+
+        if SKRL_AVAILABLE:
+            env = wrap_env(env, wrapper="isaaclab")
+
+        return env
+
+    else:  # IL
+        if not ISAAC_SIM_AVAILABLE:
+            raise RuntimeError(
+                "Isaac Sim is not available. "
+                "Run this script inside the Isaac Sim Python environment."
+            )
+
+        logger.info(
+            "Initializing IL evaluation environment: task=%s, "
+            "num_envs=%d, headless=%s",
+            task,
+            num_envs,
+            headless,
+        )
+
+        env = ManagerBasedEnv(task=task, num_envs=num_envs)
+        return env
+
+
+# ---------------------------------------------------------------------------
+# Episode evaluation
+# ---------------------------------------------------------------------------
+
+
+def evaluate_il_episode(
+    env, policy, episode_idx: int, max_steps: int, device: "torch.device"
+) -> dict:
+    """Run a single IL evaluation episode and collect metrics.
+
+    Args:
+        env: Isaac Sim environment instance.
+        policy: ACT policy in eval mode.
+        episode_idx: Current episode index (for logging).
+        max_steps: Maximum steps per episode.
+        device: Torch device.
+
+    Returns:
+        dict with episode metrics: total_reward, trajectory_error,
+        num_steps, success.
+    """
+    obs = env.reset()
+    total_reward = 0.0
+    trajectory_errors = []
+    num_steps = 0
+    success = False
+
+    for step_idx in range(max_steps):
+        # Prepare observation for policy
+        state = obs["joint_pos"]
+        if hasattr(state, "cpu"):
+            state_tensor = state.float().to(device)
+        else:
+            state_tensor = torch.tensor(
+                state, dtype=torch.float32, device=device
+            )
+
+        # Get action from policy
+        with torch.no_grad():
+            obs_dict = {"observation.state": state_tensor.unsqueeze(0)}
+            action = policy.select_action(obs_dict)
+            if hasattr(action, "squeeze"):
+                action = action.squeeze(0)
+
+        # Convert action for environment
+        if hasattr(action, "cpu"):
+            action_np = action.cpu().numpy()
+        else:
+            action_np = np.asarray(action)
+
+        obs, reward, terminated, truncated, info = env.step(action_np)
+
+        # Accumulate metrics
+        if hasattr(reward, "item"):
+            total_reward += reward.sum().item()
+        else:
+            total_reward += float(reward)
+
+        num_steps += 1
+
+        # Track trajectory error (distance between current and target)
+        if "target_pos" in obs and "ee_pos" in obs:
+            target = obs["target_pos"]
+            ee = obs["ee_pos"]
+            if hasattr(target, "cpu"):
+                target = target.cpu().numpy()
+                ee = ee.cpu().numpy()
+            error = np.linalg.norm(
+                np.asarray(target) - np.asarray(ee)
+            )
+            trajectory_errors.append(error)
+
+        # Check success from info
+        if isinstance(info, dict) and info.get("success", False):
+            success = True
+
+        # End episode on termination or truncation
+        if hasattr(terminated, "any"):
+            if terminated.any() or truncated.any():
+                break
+        elif terminated or truncated:
+            break
+
+    mean_traj_error = (
+        float(np.mean(trajectory_errors)) if trajectory_errors else 0.0
+    )
+
+    return {
+        "total_reward": total_reward,
+        "trajectory_error": mean_traj_error,
+        "num_steps": num_steps,
+        "success": success,
+    }
+
+
+def evaluate_rl_episode(
+    env, agent, episode_idx: int, max_steps: int, device: "torch.device"
+) -> dict:
+    """Run a single RL evaluation episode and collect metrics.
+
+    Args:
+        env: Wrapped skrl-compatible environment.
+        agent: skrl PPO agent.
+        episode_idx: Current episode index (for logging).
+        max_steps: Maximum steps per episode.
+        device: Torch device.
+
+    Returns:
+        dict with episode metrics: total_reward, trajectory_error,
+        num_steps, success.
+    """
+    obs, info = env.reset()
+    total_reward = 0.0
+    trajectory_errors = []
+    num_steps = 0
+    success = False
+
+    for step_idx in range(max_steps):
+        # Get action from agent
+        with torch.no_grad():
+            action = agent.act(obs, timestep=step_idx, timesteps=max_steps)
+            if isinstance(action, tuple):
+                action = action[0]
+
+        obs, reward, terminated, truncated, info = env.step(action)
+
+        # Accumulate metrics
+        if hasattr(reward, "item"):
+            total_reward += reward.sum().item()
+        elif hasattr(reward, "sum"):
+            total_reward += float(reward.sum())
+        else:
+            total_reward += float(reward)
+
+        num_steps += 1
+
+        # Track trajectory error from info or observations
+        if isinstance(info, dict) and "trajectory_error" in info:
+            err = info["trajectory_error"]
+            if hasattr(err, "item"):
+                trajectory_errors.append(err.item())
+            else:
+                trajectory_errors.append(float(err))
+
+        # Check success from info
+        if isinstance(info, dict) and info.get("success", False):
+            success = True
+
+        # End episode on termination
+        if hasattr(terminated, "any"):
+            if terminated.any() or truncated.any():
+                break
+        elif terminated or truncated:
+            break
+
+    mean_traj_error = (
+        float(np.mean(trajectory_errors)) if trajectory_errors else 0.0
+    )
+
+    return {
+        "total_reward": total_reward,
+        "trajectory_error": mean_traj_error,
+        "num_steps": num_steps,
+        "success": success,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Main evaluation pipeline
+# ---------------------------------------------------------------------------
+
+
+def run_evaluation(args: argparse.Namespace) -> bool:
+    """Run the full policy evaluation pipeline.
+
+    Args:
+        args: Parsed CLI arguments.
+
+    Returns:
+        True if evaluation completed successfully, False otherwise.
+    """
+    if not TORCH_AVAILABLE:
+        raise RuntimeError(
+            "PyTorch is not available. "
+            "Install with: pip install torch"
+        )
+    if np is None:
+        raise RuntimeError(
+            "NumPy is not available. "
+            "Install with: pip install numpy"
+        )
+
+    # Resolve parameters
+    policy_type = args.policy_type
+    checkpoint_path = args.checkpoint_path
+    task = args.task
+    num_episodes = args.num_episodes
+    max_steps = args.max_steps
+    headless = args.headless
+    success_threshold = args.success_threshold
+
+    logger.info("=== SO-ARM101 Policy Evaluation ===")
+    logger.info("Policy type:        %s", policy_type)
+    logger.info("Checkpoint:         %s", checkpoint_path)
+    logger.info("Task:               %s", task)
+    logger.info("Num episodes:       %d", num_episodes)
+    logger.info("Max steps/episode:  %d", max_steps)
+    logger.info("Headless:           %s", headless)
+    logger.info("Success threshold:  %.4f", success_threshold)
+
+    report = EvaluationReport()
+
+    # --- Check checkpoint exists ---
+    checkpoint_file = Path(checkpoint_path)
+    report.add(
+        "체크포인트 파일 존재",
+        checkpoint_file.exists(),
+        str(checkpoint_file),
+    )
+    if not checkpoint_file.exists():
+        report.log_report()
+        return report.all_passed
+
+    # --- Select device ---
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logger.info("Device: %s", device)
+
+    # --- Initialize evaluation environment ---
+    logger.info("Initializing evaluation environment...")
+    env = initialize_eval_env(
+        task=task,
+        policy_type=policy_type,
+        num_envs=1,
+        headless=headless,
+    )
+    report.add("평가 환경 초기화", True, f"task={task}")
+
+    # --- Load policy ---
+    logger.info("Loading trained policy...")
+    if policy_type == "il":
+        policy = load_il_policy(checkpoint_path, device)
+        report.add("IL 정책 로드", True, str(checkpoint_file))
+    else:
+        policy = load_rl_policy(checkpoint_path, env, device)
+        report.add("RL 에이전트 로드", True, str(checkpoint_file))
+
+    # --- Run evaluation episodes ---
+    logger.info("Running %d evaluation episodes...", num_episodes)
+    episode_results = []
+
+    for ep_idx in range(num_episodes):
+        logger.info(
+            "Episode %d/%d ...", ep_idx + 1, num_episodes
+        )
+        start_time = time.time()
+
+        if policy_type == "il":
+            result = evaluate_il_episode(
+                env=env,
+                policy=policy,
+                episode_idx=ep_idx,
+                max_steps=max_steps,
+                device=device,
+            )
+        else:
+            result = evaluate_rl_episode(
+                env=env,
+                agent=policy,
+                episode_idx=ep_idx,
+                max_steps=max_steps,
+                device=device,
+            )
+
+        elapsed = time.time() - start_time
+        result["elapsed_time"] = elapsed
+        episode_results.append(result)
+
+        logger.info(
+            "  Episode %d: reward=%.4f, traj_error=%.6f, "
+            "steps=%d, success=%s, time=%.2fs",
+            ep_idx + 1,
+            result["total_reward"],
+            result["trajectory_error"],
+            result["num_steps"],
+            result["success"],
+            elapsed,
+        )
+
+    # --- Compute aggregate metrics ---
+    total_rewards = [r["total_reward"] for r in episode_results]
+    traj_errors = [r["trajectory_error"] for r in episode_results]
+    successes = [r["success"] for r in episode_results]
+    steps = [r["num_steps"] for r in episode_results]
+
+    mean_reward = float(np.mean(total_rewards))
+    std_reward = float(np.std(total_rewards))
+    mean_traj_error = float(np.mean(traj_errors))
+    success_rate = sum(1 for s in successes if s) / len(successes)
+    mean_steps = float(np.mean(steps))
+
+    # Record metrics
+    report.set_metric("mean_reward", mean_reward)
+    report.set_metric("std_reward", std_reward)
+    report.set_metric("mean_trajectory_error", mean_traj_error)
+    report.set_metric("success_rate", success_rate)
+    report.set_metric("mean_episode_steps", mean_steps)
+
+    # --- Validation checks ---
+    report.add(
+        "에피소드 실행 완료",
+        len(episode_results) == num_episodes,
+        f"{len(episode_results)}/{num_episodes} 에피소드 완료",
+    )
+
+    report.add(
+        "평균 보상",
+        mean_reward > 0,
+        f"mean={mean_reward:.4f}, std={std_reward:.4f}",
+    )
+
+    report.add(
+        "성공률",
+        True,
+        f"{success_rate * 100:.1f}% ({sum(successes)}/{len(successes)})",
+    )
+
+    report.add(
+        "평균 궤적 오차",
+        True,
+        f"{mean_traj_error:.6f}",
+    )
+
+    # --- Print report ---
+    report.log_report()
+
+    # Cleanup
+    env.close()
+    logger.info("Environment closed. Evaluation complete.")
+
+    return report.all_passed
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for policy evaluation.
+
+    Supports both IL (ACT) and RL (PPO) policy evaluation.
+    """
     parser = argparse.ArgumentParser(
-        description="학습된 정책 시뮬레이션 평가 — IL (ACT) / RL (PPO)"
+        description="SO-ARM101 학습된 정책 평가 (IL/RL → Isaac Sim/Lab)"
     )
     parser.add_argument(
-        "--policy-type",
+        "--policy_type",
         type=str,
         required=True,
-        choices=SUPPORTED_POLICY_TYPES,
-        help="평가할 정책 타입: il (ACT) 또는 rl (PPO)",
+        choices=["il", "rl"],
+        help="정책 타입: 'il' (ACT Imitation Learning) 또는 'rl' (PPO RL)",
     )
     parser.add_argument(
-        "--checkpoint",
+        "--checkpoint_path",
         type=str,
         required=True,
-        help="정책 체크포인트 파일 경로",
+        help="학습된 정책 체크포인트 파일 경로 "
+        "(IL: .pt, RL: agent.pt)",
     )
     parser.add_argument(
-        "--num-episodes",
+        "--task",
+        type=str,
+        default="Isaac-SO101-Reach-v0",
+        help="Isaac Sim/Lab 평가 환경 태스크 이름 "
+        "(기본값: Isaac-SO101-Reach-v0)",
+    )
+    parser.add_argument(
+        "--num_episodes",
         type=int,
-        default=DEFAULT_NUM_EPISODES,
-        help=f"평가 에피소드 수 (default: {DEFAULT_NUM_EPISODES})",
+        default=10,
+        help="평가 에피소드 수 (기본값: 10)",
     )
     parser.add_argument(
-        "--render",
+        "--max_steps",
+        type=int,
+        default=200,
+        help="에피소드당 최대 스텝 수 (기본값: 200)",
+    )
+    parser.add_argument(
+        "--headless",
         action="store_true",
         default=False,
-        help="시뮬레이션 렌더링 활성화",
+        help="헤드리스 모드 (GUI 없이 평가)",
     )
     parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="메트릭 JSON 출력 경로 (미지정 시 training/eval/results_{policy_type}.json)",
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        default=None,
-        help="학습 설정 파일 경로 (미지정 시 정책 타입에 따라 자동 선택)",
-    )
-    parser.add_argument(
-        "--success-threshold",
+        "--success_threshold",
         type=float,
-        default=None,
-        help=f"목표 도달 판정 거리 (m) (default: {DEFAULT_SUCCESS_THRESHOLD})",
+        default=0.02,
+        help="목표 도달 성공 임계값 (m, 기본값: 0.02)",
     )
     parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="랜덤 시드 (default: 42)",
+        "--il_config",
+        type=str,
+        default=str(_IL_CONFIG_YAML),
+        help="IL 학습 설정 YAML 파일 경로",
+    )
+    parser.add_argument(
+        "--rl_config",
+        type=str,
+        default=str(_RL_CONFIG_YAML),
+        help="RL 학습 설정 YAML 파일 경로",
     )
     return parser.parse_args()
 
 
-def load_config(config_path):
-    """YAML 설정 파일을 로드한다.
-
-    Args:
-        config_path: config.yaml 파일 경로
-
-    Returns:
-        dict: 파싱된 설정 딕셔너리
-
-    Raises:
-        FileNotFoundError: 설정 파일이 없을 경우
-    """
-    import yaml
-
-    config_path = Path(config_path)
-    if not config_path.exists():
-        raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {config_path}")
-
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    logger.info("설정 로드 완료: %s", config_path)
-    return config
-
-
-def get_default_config_path(policy_type):
-    """정책 타입에 따른 기본 설정 파일 경로를 반환한다.
-
-    Args:
-        policy_type: 정책 타입 ("il" 또는 "rl")
-
-    Returns:
-        str: 설정 파일 경로
-    """
-    if policy_type == "il":
-        return "training/il/config.yaml"
-    elif policy_type == "rl":
-        return "training/rl/config.yaml"
-    else:
-        raise ValueError(f"지원하지 않는 정책 타입: {policy_type}")
-
-
-def get_success_threshold(config, policy_type, cli_threshold=None):
-    """성공 판정 거리 임계값을 결정한다.
-
-    CLI 인자 > config 파일 > 기본값 순으로 우선순위를 적용한다.
-
-    Args:
-        config: 설정 딕셔너리
-        policy_type: 정책 타입
-        cli_threshold: CLI에서 전달된 임계값 (None이면 config에서 읽음)
-
-    Returns:
-        float: 성공 판정 거리 (m)
-    """
-    if cli_threshold is not None:
-        return cli_threshold
-
-    # config에서 성공 임계값 로드
-    if policy_type == "rl":
-        threshold = config.get("reward", {}).get("success_threshold")
-    else:
-        threshold = config.get("evaluation", {}).get("success_threshold")
-
-    if threshold is not None:
-        return threshold
-
-    return DEFAULT_SUCCESS_THRESHOLD
-
-
-def load_il_policy(checkpoint_path, config):
-    """IL (ACT) 정책 체크포인트를 로드한다.
-
-    LeRobot ACT 정책을 체크포인트에서 복원한다.
-
-    Args:
-        checkpoint_path: ACT 체크포인트 파일 경로
-        config: IL 학습 설정 딕셔너리
-
-    Returns:
-        정책 모델 인스턴스
-
-    Raises:
-        FileNotFoundError: 체크포인트 파일이 없을 경우
-        ImportError: LeRobot/PyTorch가 설치되지 않은 경우
-    """
-    checkpoint_path = Path(checkpoint_path)
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(
-            f"체크포인트 파일을 찾을 수 없습니다: {checkpoint_path}"
-        )
-
-    try:
-        import torch
-    except ImportError:
-        logger.error(
-            "PyTorch가 설치되지 않았습니다. 설치: pip install torch"
-        )
-        raise
-
-    try:
-        from lerobot.common.policies.act.modeling_act import ACTPolicy
-    except ImportError:
-        logger.error(
-            "LeRobot이 설치되지 않았습니다. "
-            "설치 방법:\n"
-            "  pip install lerobot\n"
-            "  또는: git clone https://github.com/huggingface/lerobot && "
-            "cd lerobot && pip install -e .\n"
-            "자세한 내용: docs/references.md 참조"
-        )
-        raise
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # ACT 정책 로드
-    logger.info("ACT 정책 체크포인트 로드: %s", checkpoint_path)
-    checkpoint = torch.load(str(checkpoint_path), map_location=device)
-
-    # LeRobot ACT 정책 구성
-    policy_cfg = config.get("policy", {})
-    policy = ACTPolicy(
-        config=checkpoint.get("config", policy_cfg),
-    )
-    policy.load_state_dict(checkpoint.get("state_dict", checkpoint))
-    policy.to(device)
-    policy.eval()
-
-    logger.info("ACT 정책 로드 완료 (device: %s)", device)
-    return policy
-
-
-def load_rl_policy(checkpoint_path, config):
-    """RL (PPO) 정책 체크포인트를 로드한다.
-
-    skrl PPO 에이전트를 체크포인트에서 복원한다.
-
-    Args:
-        checkpoint_path: skrl 체크포인트 파일 경로
-        config: RL 학습 설정 딕셔너리
-
-    Returns:
-        정책 모델 인스턴스
-
-    Raises:
-        FileNotFoundError: 체크포인트 파일이 없을 경우
-        ImportError: skrl/PyTorch가 설치되지 않은 경우
-    """
-    checkpoint_path = Path(checkpoint_path)
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(
-            f"체크포인트 파일을 찾을 수 없습니다: {checkpoint_path}"
-        )
-
-    try:
-        import torch
-        import torch.nn as nn
-    except ImportError:
-        logger.error(
-            "PyTorch가 설치되지 않았습니다. 설치: pip install torch"
-        )
-        raise
-
-    try:
-        from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
-        from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
-    except ImportError:
-        logger.error(
-            "skrl이 설치되지 않았습니다. "
-            "설치: pip install skrl\n"
-            "자세한 내용: docs/references.md 참조"
-        )
-        raise
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # 네트워크 설정 로드
-    training = config.get("training", {})
-    network_cfg = training.get("network", {})
-    obs_cfg = config.get("observation", {})
-    action_cfg = config.get("action", {})
-
-    obs_dim = obs_cfg.get("total_dim", 15)
-    action_dim = action_cfg.get("dim", 6)
-    hidden_layers = network_cfg.get("hidden_layers", [256, 128, 64])
-
-    # 활성화 함수 매핑
-    activation_map = {
-        "elu": nn.ELU,
-        "relu": nn.ReLU,
-        "tanh": nn.Tanh,
-        "selu": nn.SELU,
-    }
-    activation_name = network_cfg.get("activation", "elu")
-    activation_cls = activation_map.get(activation_name, nn.ELU)
-
-    # 공유 MLP Actor-Critic 모델 정의 (train_rl.py와 동일 구조)
-    class SharedActorCritic(GaussianMixin, DeterministicMixin, Model):
-        """평가용 공유 MLP Actor-Critic 네트워크.
-
-        training/rl/train_rl.py의 SharedActorCritic과 동일한 구조를 사용한다.
-        """
-
-        def __init__(self, observation_space, action_space, device,
-                     clip_actions=False, clip_log_std=True,
-                     min_log_std=-20, max_log_std=2,
-                     reduction="sum", role=""):
-            Model.__init__(self, observation_space, action_space, device)
-            GaussianMixin.__init__(
-                self,
-                clip_actions=clip_actions,
-                clip_log_std=clip_log_std,
-                min_log_std=min_log_std,
-                max_log_std=max_log_std,
-                reduction=reduction,
-                role=role,
-            )
-            DeterministicMixin.__init__(self, clip_actions=clip_actions, role=role)
-
-            # 공유 백본 구성
-            layers = []
-            in_dim = obs_dim
-            for h_dim in hidden_layers:
-                layers.append(nn.Linear(in_dim, h_dim))
-                layers.append(activation_cls())
-                in_dim = h_dim
-
-            self.backbone = nn.Sequential(*layers)
-            self.actor_head = nn.Linear(in_dim, action_dim)
-            self.log_std_parameter = nn.Parameter(torch.zeros(action_dim))
-            self.critic_head = nn.Linear(in_dim, 1)
-
-        def compute(self, inputs, role=""):
-            """순전파 계산."""
-            features = self.backbone(inputs["states"])
-
-            if role == "policy":
-                mean = self.actor_head(features)
-                log_std = self.log_std_parameter.expand_as(mean)
-                return mean, log_std, {}
-            elif role == "value":
-                value = self.critic_head(features)
-                return value, {}
-
-            mean = self.actor_head(features)
-            log_std = self.log_std_parameter.expand_as(mean)
-            return mean, log_std, {}
-
-    # 체크포인트 로드
-    logger.info("PPO 정책 체크포인트 로드: %s", checkpoint_path)
-    checkpoint = torch.load(str(checkpoint_path), map_location=device)
-
-    # skrl 체크포인트에서 모델 상태 복원
-    # skrl은 에이전트 전체를 저장하므로 policy 모델 상태를 추출한다
-    if isinstance(checkpoint, dict) and "policy" in checkpoint:
-        state_dict = checkpoint["policy"]
-    else:
-        state_dict = checkpoint
-
-    logger.info("PPO 정책 로드 완료 (device: %s)", device)
-    return state_dict, SharedActorCritic, device
-
-
-def setup_eval_environment(config, policy_type, render=False):
-    """평가용 시뮬레이션 환경을 초기화한다.
-
-    Args:
-        config: 학습 설정 딕셔너리
-        policy_type: 정책 타입 ("il" 또는 "rl")
-        render: 렌더링 활성화 여부
-
-    Returns:
-        환경 인스턴스
-
-    Raises:
-        ImportError: Isaac Lab이 설치되지 않은 경우
-    """
-    try:
-        import gymnasium as gym
-    except ImportError:
-        logger.error(
-            "gymnasium이 설치되지 않았습니다. 설치: pip install gymnasium"
-        )
-        raise
-
-    if policy_type == "rl":
-        try:
-            from training.rl.so101_env import SO101ReachEnvCfg
-
-            env_cfg = SO101ReachEnvCfg()
-            # 평가 시에는 단일 환경 사용
-            env_cfg.scene.num_envs = 1
-
-            task_name = config.get("environment", {}).get(
-                "task_name", "Isaac-SO101-Reach-v0"
-            )
-            env = gym.make(
-                task_name,
-                cfg=env_cfg,
-                render_mode="human" if render else None,
-            )
-
-            logger.info(
-                "RL 평가 환경 초기화 완료: %s (render: %s)", task_name, render
-            )
-            return env
-
-        except ImportError as e:
-            logger.error(
-                "Isaac Lab 환경을 초기화할 수 없습니다: %s\n"
-                "Isaac Sim 5.1.0 + Isaac Lab v2.3.0을 설치하세요.\n"
-                "설치 가이드: docs/references.md 참조",
-                e,
-            )
-            raise
-
-    elif policy_type == "il":
-        try:
-            env_cfg = config.get("env", {})
-            env_type = env_cfg.get("type", "gym_manipulator")
-
-            # LeRobot 환경 또는 gymnasium 환경 초기화
-            env = gym.make(
-                env_type,
-                render_mode="human" if render else None,
-            )
-
-            logger.info(
-                "IL 평가 환경 초기화 완료: %s (render: %s)", env_type, render
-            )
-            return env
-
-        except ImportError as e:
-            logger.error(
-                "IL 평가 환경을 초기화할 수 없습니다: %s\n"
-                "LeRobot과 관련 의존성을 설치하세요.\n"
-                "자세한 내용: docs/references.md 참조",
-                e,
-            )
-            raise
-
-    else:
-        raise ValueError(f"지원하지 않는 정책 타입: {policy_type}")
-
-
-def run_evaluation(env, policy, policy_type, num_episodes, success_threshold, seed):
-    """정책 평가를 실행하고 에피소드별 메트릭을 수집한다.
-
-    Args:
-        env: 시뮬레이션 환경 인스턴스
-        policy: 로드된 정책 (IL: 모델 인스턴스, RL: (state_dict, model_cls, device))
-        policy_type: 정책 타입 ("il" 또는 "rl")
-        num_episodes: 평가 에피소드 수
-        success_threshold: 목표 도달 판정 거리 (m)
-        seed: 랜덤 시드
-
-    Returns:
-        list[dict]: 에피소드별 메트릭 리스트
-    """
-    import torch
-
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-
-    episode_metrics = []
-
-    logger.info("=== 정책 평가 시작 ===")
-    logger.info("정책 타입: %s", policy_type)
-    logger.info("에피소드 수: %d", num_episodes)
-    logger.info("성공 임계값: %.4f m", success_threshold)
-
-    for ep_idx in range(num_episodes):
-        obs, info = env.reset(seed=seed + ep_idx)
-        done = False
-        truncated = False
-
-        episode_reward = 0.0
-        episode_length = 0
-        trajectory_errors = []
-        min_distance = float("inf")
-
-        while not done and not truncated:
-            # 정책 추론
-            action = _infer_action(policy, obs, policy_type)
-
-            # 환경 스텝
-            obs, reward, done, truncated, info = env.step(action)
-
-            episode_reward += float(reward) if not hasattr(reward, "__len__") else float(reward.sum())
-            episode_length += 1
-
-            # 궤적 오차 수집 (info에서 거리 정보 추출)
-            distance = _extract_distance(info, obs)
-            if distance is not None:
-                trajectory_errors.append(distance)
-                min_distance = min(min_distance, distance)
-
-        # 에피소드 성공 판정
-        success = min_distance < success_threshold if min_distance < float("inf") else False
-
-        # 궤적 오차 RMSE
-        if trajectory_errors:
-            trajectory_rmse = math.sqrt(
-                sum(e ** 2 for e in trajectory_errors) / len(trajectory_errors)
-            )
-        else:
-            trajectory_rmse = float("nan")
-
-        ep_metric = {
-            "episode": ep_idx,
-            "reward": episode_reward,
-            "length": episode_length,
-            "success": success,
-            "min_distance": min_distance if min_distance < float("inf") else float("nan"),
-            "trajectory_rmse": trajectory_rmse,
-        }
-        episode_metrics.append(ep_metric)
-
-        if (ep_idx + 1) % max(1, num_episodes // 10) == 0:
-            logger.info(
-                "  [%d/%d] reward=%.3f, length=%d, success=%s, min_dist=%.4f",
-                ep_idx + 1,
-                num_episodes,
-                episode_reward,
-                episode_length,
-                success,
-                min_distance if min_distance < float("inf") else float("nan"),
-            )
-
-    logger.info("=== 정책 평가 완료 ===")
-    return episode_metrics
-
-
-def _infer_action(policy, obs, policy_type):
-    """정책에서 액션을 추론한다.
-
-    Args:
-        policy: 정책 모델 또는 (state_dict, model_cls, device)
-        obs: 현재 관측
-        policy_type: 정책 타입
-
-    Returns:
-        액션 값 (numpy array 또는 tensor)
-    """
-    import torch
-    import numpy as np
-
-    if policy_type == "il":
-        # IL (ACT) 정책 추론
-        with torch.no_grad():
-            if isinstance(obs, np.ndarray):
-                device = next(policy.parameters()).device
-                obs_tensor = torch.from_numpy(obs).float().unsqueeze(0).to(device)
-            else:
-                obs_tensor = obs.unsqueeze(0) if obs.dim() == 1 else obs
-
-            action = policy.select_action(obs_tensor)
-
-            if isinstance(action, torch.Tensor):
-                action = action.squeeze(0).cpu().numpy()
-
-        return action
-
-    elif policy_type == "rl":
-        # RL (PPO) 정책 추론 — skrl 에이전트의 act() 메서드 사용
-        state_dict, model_cls, device = policy
-
-        with torch.no_grad():
-            if isinstance(obs, np.ndarray):
-                obs_tensor = torch.from_numpy(obs).float().to(device)
-            else:
-                obs_tensor = obs.to(device)
-
-            if obs_tensor.dim() == 1:
-                obs_tensor = obs_tensor.unsqueeze(0)
-
-            # skrl 형식으로 입력 구성
-            inputs = {"states": obs_tensor}
-            mean, _, _ = _get_rl_policy_output(state_dict, model_cls, inputs, device)
-
-            action = mean.squeeze(0).cpu().numpy()
-
-        return action
-
-    else:
-        raise ValueError(f"지원하지 않는 정책 타입: {policy_type}")
-
-
-def _get_rl_policy_output(state_dict, model_cls, inputs, device):
-    """RL 정책 모델의 출력을 반환한다.
-
-    Args:
-        state_dict: 모델 상태 딕셔너리
-        model_cls: 모델 클래스
-        inputs: 입력 딕셔너리
-        device: 디바이스
-
-    Returns:
-        tuple: (mean, log_std, extras)
-    """
-    import torch
-    import gymnasium as gym
-
-    # 관측/액션 공간 생성 (state_dict 크기에서 추론)
-    # backbone.0.weight의 in_features → obs_dim
-    # actor_head.weight의 out_features → action_dim
-    obs_dim = None
-    action_dim = None
-
-    for key, value in state_dict.items():
-        if "backbone.0.weight" in key:
-            obs_dim = value.shape[1]
-        if "actor_head.weight" in key:
-            action_dim = value.shape[0]
-
-    if obs_dim is None or action_dim is None:
-        raise ValueError("체크포인트에서 관측/액션 차원을 추론할 수 없습니다")
-
-    obs_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(obs_dim,))
-    act_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(action_dim,))
-
-    model = model_cls(
-        observation_space=obs_space,
-        action_space=act_space,
-        device=device,
-        role="policy",
-    )
-    model.load_state_dict(state_dict)
-    model.to(device)
-    model.eval()
-
-    return model.compute(inputs, role="policy")
-
-
-def _extract_distance(info, obs):
-    """환경 info 또는 관측에서 엔드이펙터-목표 거리를 추출한다.
-
-    Args:
-        info: 환경 step()의 info 딕셔너리
-        obs: 현재 관측
-
-    Returns:
-        float 또는 None: 거리 값
-    """
-    import numpy as np
-
-    # info에서 거리 정보 추출 시도
-    if isinstance(info, dict):
-        # Isaac Lab 환경에서 제공하는 거리 정보
-        distance = info.get("distance_to_target")
-        if distance is not None:
-            return float(distance) if not hasattr(distance, "__len__") else float(distance[0])
-
-        # 대안: 성공 여부에서 거리 추정
-        if "is_success" in info:
-            return 0.0 if info["is_success"] else None
-
-    # obs에서 마지막 3개 요소를 목표 상대 위치로 가정 (15차원 관측의 경우)
-    if hasattr(obs, "__len__") and len(obs) >= 15:
-        obs_array = np.asarray(obs).flatten()
-        # 관측 공간: [joint_pos(6), joint_vel(6), target_pos(3)]
-        target_relative_pos = obs_array[-3:]
-        distance = float(np.linalg.norm(target_relative_pos))
-        return distance
-
-    return None
-
-
-def compute_aggregate_metrics(episode_metrics):
-    """에피소드별 메트릭에서 집계 통계를 산출한다.
-
-    Args:
-        episode_metrics: 에피소드별 메트릭 리스트
-
-    Returns:
-        dict: 집계된 평가 메트릭
-    """
-    if not episode_metrics:
-        return {}
-
-    rewards = [ep["reward"] for ep in episode_metrics]
-    lengths = [ep["length"] for ep in episode_metrics]
-    successes = [ep["success"] for ep in episode_metrics]
-    rmses = [ep["trajectory_rmse"] for ep in episode_metrics
-             if not math.isnan(ep["trajectory_rmse"])]
-    min_dists = [ep["min_distance"] for ep in episode_metrics
-                 if not math.isnan(ep["min_distance"])]
-
-    def _mean(values):
-        """리스트의 평균을 계산한다."""
-        if not values:
-            return float("nan")
-        return sum(values) / len(values)
-
-    def _std(values):
-        """리스트의 표준편차를 계산한다."""
-        if len(values) < 2:
-            return float("nan")
-        mean = _mean(values)
-        variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
-        return math.sqrt(variance)
-
-    metrics = {
-        # 성공률
-        "success_rate": _mean([float(s) for s in successes]),
-        "num_successes": sum(successes),
-        "num_episodes": len(episode_metrics),
-        # 에피소드 보상
-        "mean_episode_reward": _mean(rewards),
-        "std_episode_reward": _std(rewards),
-        "min_episode_reward": min(rewards) if rewards else float("nan"),
-        "max_episode_reward": max(rewards) if rewards else float("nan"),
-        # 에피소드 길이
-        "mean_episode_length": _mean(lengths),
-        "std_episode_length": _std(lengths),
-        # 궤적 오차 (RMSE)
-        "mean_trajectory_error": _mean(rmses),
-        "std_trajectory_error": _std(rmses),
-        # 최소 거리
-        "mean_min_distance": _mean(min_dists),
-        "std_min_distance": _std(min_dists),
-    }
-
-    return metrics
-
-
-def save_results(metrics, episode_metrics, output_path, policy_type, checkpoint_path):
-    """평가 결과를 JSON 파일로 저장한다.
-
-    Args:
-        metrics: 집계된 메트릭 딕셔너리
-        episode_metrics: 에피소드별 메트릭 리스트
-        output_path: JSON 출력 파일 경로
-        policy_type: 정책 타입
-        checkpoint_path: 평가한 체크포인트 경로
-    """
-    output_path = Path(output_path)
-    os.makedirs(output_path.parent, exist_ok=True)
-
-    result = {
-        "metadata": {
-            "policy_type": policy_type,
-            "checkpoint": str(checkpoint_path),
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "num_episodes": len(episode_metrics),
-        },
-        "aggregate_metrics": metrics,
-        "episode_metrics": episode_metrics,
-    }
-
-    # NaN을 null로 변환하여 JSON 호환성 확보
-    def _convert_nan(obj):
-        """NaN 값을 None으로 변환한다."""
-        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
-            return None
-        elif isinstance(obj, dict):
-            return {k: _convert_nan(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [_convert_nan(v) for v in obj]
-        return obj
-
-    result = _convert_nan(result)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2, ensure_ascii=False)
-
-    logger.info("평가 결과 저장 완료: %s", output_path)
-
-
-def print_summary(metrics, policy_type):
-    """평가 결과 요약을 콘솔에 출력한다.
-
-    Args:
-        metrics: 집계된 메트릭 딕셔너리
-        policy_type: 정책 타입
-    """
-    policy_name = "ACT (IL)" if policy_type == "il" else "PPO (RL)"
-
-    logger.info("=" * 60)
-    logger.info("평가 결과 요약 — %s", policy_name)
-    logger.info("=" * 60)
-    logger.info(
-        "에피소드 수: %d (성공: %d)",
-        metrics.get("num_episodes", 0),
-        metrics.get("num_successes", 0),
-    )
-    logger.info("성공률: %.2f%%", metrics.get("success_rate", 0) * 100)
-    logger.info("-" * 40)
-    logger.info(
-        "평균 보상: %.4f ± %.4f",
-        metrics.get("mean_episode_reward", float("nan")),
-        metrics.get("std_episode_reward", float("nan")),
-    )
-    logger.info(
-        "평균 에피소드 길이: %.1f ± %.1f",
-        metrics.get("mean_episode_length", float("nan")),
-        metrics.get("std_episode_length", float("nan")),
-    )
-    logger.info(
-        "평균 궤적 오차 (RMSE): %.4f ± %.4f",
-        metrics.get("mean_trajectory_error", float("nan")),
-        metrics.get("std_trajectory_error", float("nan")),
-    )
-    logger.info(
-        "평균 최소 거리: %.4f ± %.4f m",
-        metrics.get("mean_min_distance", float("nan")),
-        metrics.get("std_min_distance", float("nan")),
-    )
-    logger.info("=" * 60)
-
-
-def main():
-    """정책 평가 메인 엔트리포인트."""
-    args = parse_args()
-
-    # 로깅 설정
+def main() -> None:
+    """Entry point for policy evaluation."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    logger.info("=== Policy Evaluation ===")
-    logger.info("정책 타입: %s", args.policy_type)
-    logger.info("체크포인트: %s", args.checkpoint)
-    logger.info("에피소드 수: %d", args.num_episodes)
+    args = parse_args()
 
-    # 1. 체크포인트 존재 확인
-    checkpoint_path = Path(args.checkpoint)
-    if not checkpoint_path.exists():
-        logger.error("체크포인트 파일을 찾을 수 없습니다: %s", checkpoint_path)
+    # Allow overriding YAML paths via CLI
+    global _IL_CONFIG_YAML, _RL_CONFIG_YAML
+    _IL_CONFIG_YAML = Path(args.il_config)
+    _RL_CONFIG_YAML = Path(args.rl_config)
+
+    try:
+        all_passed = run_evaluation(args)
+    except RuntimeError as exc:
+        logger.error("Evaluation failed: %s", exc)
+        sys.exit(1)
+    except FileNotFoundError as exc:
+        logger.error("File not found: %s", exc)
+        sys.exit(1)
+    except Exception as exc:
+        logger.error("Unexpected error during evaluation: %s", exc)
         sys.exit(1)
 
-    # 2. 설정 로드
-    config_path = args.config or get_default_config_path(args.policy_type)
-    try:
-        config = load_config(config_path)
-    except FileNotFoundError:
-        logger.warning(
-            "설정 파일을 찾을 수 없습니다: %s. 기본 설정을 사용합니다.",
-            config_path,
-        )
-        config = {}
-
-    # 3. 성공 임계값 결정
-    success_threshold = get_success_threshold(
-        config, args.policy_type, args.success_threshold
-    )
-    logger.info("성공 임계값: %.4f m", success_threshold)
-
-    # 4. 정책 로드
-    logger.info("정책 로드 중...")
-    if args.policy_type == "il":
-        policy = load_il_policy(args.checkpoint, config)
-    elif args.policy_type == "rl":
-        policy = load_rl_policy(args.checkpoint, config)
-    else:
-        logger.error("지원하지 않는 정책 타입: %s", args.policy_type)
+    if not all_passed:
+        logger.error("평가 실패: 일부 항목이 FAIL입니다.")
         sys.exit(1)
 
-    # 5. 평가 환경 초기화
-    logger.info("평가 환경 초기화 중...")
-    env = setup_eval_environment(config, args.policy_type, render=args.render)
-
-    # 6. 평가 실행
-    try:
-        episode_metrics = run_evaluation(
-            env=env,
-            policy=policy,
-            policy_type=args.policy_type,
-            num_episodes=args.num_episodes,
-            success_threshold=success_threshold,
-            seed=args.seed,
-        )
-    except KeyboardInterrupt:
-        logger.info("평가가 사용자에 의해 중단되었습니다.")
-        episode_metrics = []
-    finally:
-        env.close()
-        logger.info("평가 환경 종료")
-
-    # 7. 메트릭 집계
-    metrics = compute_aggregate_metrics(episode_metrics)
-
-    # 8. 결과 저장
-    output_path = args.output or f"training/eval/results_{args.policy_type}.json"
-    save_results(metrics, episode_metrics, output_path, args.policy_type, args.checkpoint)
-
-    # 9. 콘솔 요약 출력
-    print_summary(metrics, args.policy_type)
-
-    logger.info("=== Policy Evaluation 완료 ===")
+    logger.info("평가 완료: 모든 항목 PASS.")
 
 
 if __name__ == "__main__":

@@ -1,108 +1,130 @@
-# config.yaml — ACT Imitation Learning 학습 설정
+# config.yaml — ACT (Action Chunking with Transformers) IL 학습 설정
 #
-# ACT (Action Chunking with Transformers) 정책의 학습 하이퍼파라미터를 정의한다.
-# 논문: arxiv:2304.13705 (Learning Fine-Grained Bimanual Manipulation)
+# 이 파일은 ACT 정책 학습에 사용되는 하이퍼파라미터를 정의한다.
+# Phase 6: 학습 루프 — Imitation Learning baseline
+# Reference: arxiv:2304.13705 (ALOHA)
 #
-# 로봇 제어 파라미터(조인트 리밋, 드라이브 게인 등)는 params/control.yaml에서 참조한다.
-# 물리 파라미터(시뮬레이션 dt 등)는 params/physics.yaml에서 참조한다.
-#
-# Phase 6: ACT IL baseline 학습
+# 스키마 규칙:
+#   value     — 현재 값
+#   unit      — SI 단위
+#   range     — 유효 범위 [min, max]
+#   description — 파라미터 설명
 
-# --- 정책 아키텍처 (ACT) ---
+# --- 정책 설정 (ACT) ---
 policy:
-  type: "act"
-  # Action Chunking 설정
-  chunk_size: 100                # action chunking window (한 번에 예측하는 액션 수)
-  n_obs_steps: 1                 # 관측 히스토리 길이
+  type:
+    value: "act"
+    unit: "string"
+    description: "정책 타입 (ACT: Action Chunking with Transformers)"
 
-  # Transformer 아키텍처
-  dim_model: 512                 # Transformer hidden dimension
-  n_heads: 8                     # Multi-head attention 헤드 수
-  n_encoder_layers: 4            # CVAE encoder Transformer 레이어 수
-  n_decoder_layers: 7            # action decoder Transformer 레이어 수
-  dim_feedforward: 3200          # Transformer FFN hidden dimension (dim_model * ~6.25)
-  dropout: 0.1                   # Transformer dropout rate
+  chunk_size:
+    value: 100
+    unit: "steps"
+    range: [1, 500]
+    description: "액션 청킹 윈도우 크기 (한 번에 예측하는 액션 수)"
 
-  # 입출력 차원 — SO-ARM101: 6 DOF (5 회전 + 1 그리퍼)
-  # 조인트 순서: [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper]
-  n_action_dims: 6               # 액션 차원 (조인트 위치 목표값)
-  n_obs_dims: 6                  # 관측 차원 (조인트 위치)
+  n_obs_steps:
+    value: 1
+    unit: "steps"
+    range: [1, 10]
+    description: "관측 히스토리 길이 (현재 관측만 사용)"
 
-  # CVAE (Conditional VAE) 설정
-  latent_dim: 32                 # CVAE latent space 차원
-  kl_weight: 10.0                # KL divergence loss 가중치
+  dim_model:
+    value: 512
+    unit: "dimensions"
+    range: [64, 2048]
+    description: "Transformer 모델 임베딩 차원"
+
+  n_heads:
+    value: 8
+    unit: "count"
+    range: [1, 16]
+    description: "멀티헤드 어텐션 헤드 수"
+
+  n_encoder_layers:
+    value: 4
+    unit: "layers"
+    range: [1, 12]
+    description: "Transformer 인코더 레이어 수"
+
+  n_decoder_layers:
+    value: 7
+    unit: "layers"
+    range: [1, 12]
+    description: "Transformer 디코더 레이어 수"
 
 # --- 학습 설정 ---
 training:
-  # 최적화
-  optimizer: "adamw"
-  learning_rate: 1.0e-5          # AdamW 학습률
-  weight_decay: 1.0e-4           # AdamW weight decay
-  betas: [0.9, 0.999]            # Adam beta 파라미터
+  batch_size:
+    value: 8
+    unit: "samples"
+    range: [1, 128]
+    description: "미니배치 크기"
 
-  # 스케줄링
-  lr_scheduler: "cosine"         # 학습률 스케줄러 (cosine annealing)
-  warmup_steps: 500              # warmup 스텝 수
+  steps:
+    value: 100000
+    unit: "steps"
+    range: [1000, 1000000]
+    description: "총 학습 스텝 수"
 
-  # 학습 루프
-  batch_size: 8                  # 미니배치 크기
-  total_steps: 100000            # 총 학습 스텝 수
-  save_freq: 25000               # 체크포인트 저장 주기 (스텝)
-  eval_freq: 5000                # 평가 주기 (스텝)
-  log_freq: 100                  # 로깅 주기 (스텝)
+  save_freq:
+    value: 25000
+    unit: "steps"
+    range: [1000, 100000]
+    description: "체크포인트 저장 주기"
 
-  # 데이터 로딩
-  num_workers: 4                 # DataLoader worker 수
-  pin_memory: true               # GPU 메모리 pinning
+  optimizer:
+    type:
+      value: "AdamW"
+      unit: "string"
+      description: "옵티마이저 타입"
 
-  # 체크포인트
-  output_dir: "training/il/checkpoints"
-  resume_from: null              # 이전 체크포인트 경로 (재학습 시)
+    lr:
+      value: 1.0e-5
+      unit: "dimensionless"
+      range: [1.0e-7, 1.0e-2]
+      description: "학습률 (AdamW)"
 
-  # 재현성
-  seed: 42
+    weight_decay:
+      value: 1.0e-4
+      unit: "dimensionless"
+      range: [0.0, 1.0e-1]
+      description: "가중치 감쇠 (AdamW)"
+
+  output_dir:
+    value: "training/il/checkpoints"
+    unit: "path"
+    description: "체크포인트 저장 경로"
 
 # --- 데이터셋 설정 ---
+# params/data_pipeline.yaml의 dataset.repo_id 참조
 dataset:
-  repo_id: "local/so101_teleop"  # LeRobot 데이터셋 식별자
-  root: "data/demonstrations"    # 로컬 데이터셋 경로
-  split: "train"                 # 데이터 분할 (train/val/test)
-  val_ratio: 0.1                 # 검증 세트 비율
+  repo_id:
+    value: "local/so101_teleop"
+    unit: "string"
+    description: "LeRobot 데이터셋 리포지토리 ID (params/data_pipeline.yaml 참조)"
 
-  # 전처리
-  normalize: true                # 관측/액션 정규화 여부
-  augmentation: false            # 데이터 증강 여부 (Phase 6에서는 비활성)
-
-# --- 로봇 설정 (params/control.yaml 참조) ---
-# 아래 값들은 params/control.yaml과 일치해야 한다.
-# 학습 코드에서는 params/control.yaml을 직접 로드하여 교차검증한다.
-robot:
-  name: "so_arm101"
-  dof: 6
-  joint_names:
-    - "shoulder_pan"
-    - "shoulder_lift"
-    - "elbow_flex"
-    - "wrist_flex"
-    - "wrist_roll"
-    - "gripper"
-
-  # params/control.yaml → joint_limits 참조
-  joint_position_min: [-3.14, -1.57, -1.57, -1.57, -1.57, 0.0]   # rad
-  joint_position_max: [3.14, 1.57, 1.57, 1.57, 1.57, 1.0]        # rad
-  joint_velocity_max: [6.28, 6.28, 6.28, 6.28, 6.28, 6.28]       # rad/s
-
-  # params/control.yaml → control_frequency, action_scale 참조
-  control_frequency: 20.0       # Hz — 정책 실행 빈도
-  action_scale: 1.0             # 정책 출력 스케일 팩터
+  fps:
+    value: 30
+    unit: "Hz"
+    range: [10, 60]
+    description: "데이터셋 프레임 레이트 (params/data_pipeline.yaml 참조)"
 
 # --- 환경 설정 ---
 env:
-  type: "gym_manipulator"        # LeRobot 환경 타입
-  fps: 20                        # 환경 FPS (control_frequency와 동일)
+  type:
+    value: "gym_manipulator"
+    unit: "string"
+    description: "LeRobot 환경 타입"
 
-# --- 로깅 설정 ---
-logging:
-  backend: "tensorboard"         # 로깅 백엔드 (tensorboard / wandb)
-  project_name: "soarm101_act"   # 프로젝트 이름
-  log_dir: "training/il/logs"    # 로그 저장 경로
+  state_dim:
+    value: 6
+    unit: "dimensions"
+    range: [1, 32]
+    description: "상태 공간 차원 (6 DOF 조인트 위치)"
+
+  action_dim:
+    value: 6
+    unit: "dimensions"
+    range: [1, 32]
+    description: "액션 공간 차원 (6 DOF 목표 조인트 위치)"
