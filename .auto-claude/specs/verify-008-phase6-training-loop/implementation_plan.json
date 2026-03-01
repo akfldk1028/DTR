@@ -1,0 +1,364 @@
+{
+  "status": "in_progress",
+  "taskType": "verify",
+  "priority": 1,
+  "dependsOn": [
+    "008-phase6-training-loop"
+  ],
+  "parentTask": "008-phase6-training-loop",
+  "created_at": "2026-03-01T06:59:43.713723+00:00",
+  "updated_at": "2026-03-01T06:59:43.716241+00:00",
+  "xstateState": "coding",
+  "feature": "Phase 6 Training Loop — ACT IL baseline + Isaac Lab RL task",
+  "workflow_type": "feature",
+  "workflow_rationale": "Multi-component feature: 6 new files across 3 sub-services (IL, RL, eval). The training code does not exist yet (only README placeholders). Dependencies flow: config → scripts → evaluation → verification. IL and RL are independent and can be parallelized.",
+  "phases": [
+    {
+      "id": "phase-1-il-setup",
+      "name": "IL Training Setup",
+      "type": "implementation",
+      "description": "Create ACT Imitation Learning configuration and training wrapper using LeRobot. Config follows params/*.yaml schema pattern. Training script follows scripts/collect_data.py pattern (YAML loading, import guards, argparse, logging).",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Create training/il/config.yaml — ACT training hyperparameters following params/*.yaml schema (value/unit/range/description). Includes: chunk_size=100, n_obs_steps=1, dim_model=512, n_heads=8, n_encoder_layers=4, n_decoder_layers=7, lr=1e-5 (AdamW), batch_size=8, training_steps=100000, save_freq=25000. References dataset repo_id from params/data_pipeline.yaml.",
+          "service": "training_il",
+          "files_to_modify": [],
+          "files_to_create": [
+            "training/il/config.yaml"
+          ],
+          "patterns_from": [
+            "params/control.yaml",
+            "params/data_pipeline.yaml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python3 -c \"import yaml; cfg = yaml.safe_load(open('training/il/config.yaml')); assert 'policy' in cfg; assert 'training' in cfg; print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "Created training/il/config.yaml with ACT hyperparameters following params/*.yaml schema (value/unit/range/description). Verification passed: 'policy' and 'training' sections present. All specified hyperparameters included: chunk_size=100, n_obs_steps=1, dim_model=512, n_heads=8, n_encoder_layers=4, n_decoder_layers=7, lr=1e-5 (AdamW), batch_size=8, steps=100000, save_freq=25000. Dataset repo_id references params/data_pipeline.yaml.",
+          "updated_at": "2026-03-01T07:08:40.689967+00:00"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Create training/il/train_act.py — LeRobot ACT training wrapper. Pattern: (1) Load config.yaml + params/data_pipeline.yaml, (2) Guard LeRobot/torch imports with try/except, (3) argparse CLI overrides, (4) logging module, (5) build ACT policy config from config.yaml hyperparams, (6) launch training via lerobot.scripts.train or programmatic API, (7) save checkpoint to training/il/checkpoints/. Follows scripts/collect_data.py pattern for YAML loading and CLI structure.",
+          "service": "training_il",
+          "files_to_modify": [],
+          "files_to_create": [
+            "training/il/train_act.py"
+          ],
+          "patterns_from": [
+            "scripts/collect_data.py",
+            "scripts/validate_dataset.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python3 -c \"import ast; ast.parse(open('training/il/train_act.py').read()); print('SYNTAX OK')\" && python3 training/il/train_act.py --help",
+            "expected": "SYNTAX OK"
+          },
+          "status": "completed",
+          "notes": "Created training/il/train_act.py — LeRobot ACT training wrapper. Follows scripts/collect_data.py pattern exactly: (1) YAML loading with _load_yaml/_get_value helpers, (2) try/except guarded imports for torch/LeRobot/ACT, (3) argparse CLI with overrides for repo_id, batch_size, steps, save_freq, output_dir, lr, (4) logging module throughout, (5) builds ACT policy config from config.yaml hyperparams, (6) programmatic training loop with ACTPolicy/ACTConfig, (7) saves checkpoints to training/il/checkpoints/. Verification passed: SYNTAX OK + --help works.",
+          "updated_at": "2026-03-01T07:11:02.361666+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-rl-setup",
+      "name": "RL Environment and Training Setup",
+      "type": "implementation",
+      "description": "Create Isaac Lab RL environment (ArticulationCfg + Reach task) and skrl training wrapper. Environment uses drive gains from params/control.yaml, physics from params/physics.yaml. References MuammerBay/isaac_so_arm101 for ArticulationCfg pattern.",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Create training/rl/config.yaml — RL training configuration following params/*.yaml schema. Includes: algorithm (PPO), num_envs=1024, max_iterations=1000, learning_rate=3e-4, gamma=0.99, lambda=0.95, clip_range=0.2, entropy_coef=0.01, value_loss_coef=0.5. Also domain randomization settings: mass_scale ±20%, friction ±30%, actuator_gain ±15%. References params/control.yaml for drive gains and params/physics.yaml for physics.",
+          "service": "training_rl",
+          "files_to_modify": [],
+          "files_to_create": [
+            "training/rl/config.yaml"
+          ],
+          "patterns_from": [
+            "params/control.yaml",
+            "params/physics.yaml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python3 -c \"import yaml; cfg = yaml.safe_load(open('training/rl/config.yaml')); assert 'algorithm' in cfg; assert 'environment' in cfg; print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "Created training/rl/config.yaml with RL training configuration following params/*.yaml schema (value/unit/range/description). Includes: algorithm (PPO) with lr=3e-4, gamma=0.99, lambda=0.95, clip_range=0.2, entropy_coef=0.01, value_loss_coef=0.5. Environment: num_envs=1024, task=Isaac-SO101-Reach-v0. Training: max_iterations=1000. Domain randomization: mass_scale ±20%, friction ±30%, actuator_gain ±15%. References params/control.yaml for drive gains and params/physics.yaml for physics. Also includes reward config, network architecture, and training output settings. Verification passed: 'algorithm' and 'environment' sections present.",
+          "updated_at": "2026-03-01T07:13:36.687237+00:00"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Create training/rl/so101_env.py — Isaac Lab ArticulationCfg + Reach task environment. Defines: (1) SO101_CFG ArticulationCfg with UsdFileCfg pointing to assets/usd/so101_follower.usd, (2) ImplicitActuatorCfg with stiffness/damping from params/control.yaml, (3) Reach task environment class extending ManagerBasedRLEnvCfg, (4) observation/action spaces, (5) reward function for reach task. Guard all Isaac Lab imports with try/except. Load drive gains and joint limits from params/control.yaml.",
+          "service": "training_rl",
+          "files_to_modify": [],
+          "files_to_create": [
+            "training/rl/so101_env.py"
+          ],
+          "patterns_from": [
+            "scripts/sanity_checks.py",
+            "scripts/min_controller.py",
+            "params/control.yaml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python3 -c \"import ast; ast.parse(open('training/rl/so101_env.py').read()); print('SYNTAX OK')\"",
+            "expected": "SYNTAX OK"
+          },
+          "status": "completed",
+          "notes": "Created training/rl/so101_env.py — Isaac Lab ArticulationCfg + Reach task environment. Defines: (1) SO101_CFG ArticulationCfg with UsdFileCfg pointing to assets/usd/so101_follower.usd, (2) ImplicitActuatorCfg with stiffness=40.0/damping=4.0 loaded from params/control.yaml, (3) SO101ReachEnvCfg extending ManagerBasedRLEnvCfg with observation groups (joint_pos, joint_vel, target_pos, ee_pos), action space (6 DOF joint positions), reward functions (reach_position, action_penalty, joint_velocity_penalty, reach_success_bonus), and termination conditions. All Isaac Lab imports guarded with try/except (omni.isaac.lab + isaaclab fallback). Drive gains, joint limits, and joint names loaded from params/control.yaml. Reward weights loaded from training/rl/config.yaml. Verification passed: SYNTAX OK + module runs and prints configuration summary.",
+          "updated_at": "2026-03-01T07:16:56.355050+00:00"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "Create training/rl/train_rl.py — skrl RL training wrapper. Pattern: (1) Load training/rl/config.yaml + params/*.yaml, (2) Guard Isaac Lab / skrl imports with try/except, (3) argparse CLI with --task, --num_envs, --headless overrides, (4) logging module, (5) Create env from so101_env.py, (6) Configure PPO agent via skrl, (7) Run training loop, (8) Save checkpoint to training/rl/checkpoints/. Follows scripts/collect_data.py pattern for CLI structure.",
+          "service": "training_rl",
+          "files_to_modify": [],
+          "files_to_create": [
+            "training/rl/train_rl.py"
+          ],
+          "patterns_from": [
+            "scripts/collect_data.py",
+            "scripts/min_controller.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python3 -c \"import ast; ast.parse(open('training/rl/train_rl.py').read()); print('SYNTAX OK')\" && python3 training/rl/train_rl.py --help",
+            "expected": "SYNTAX OK"
+          },
+          "status": "completed",
+          "notes": "Created training/rl/train_rl.py — skrl PPO RL training wrapper. Follows scripts/collect_data.py pattern exactly: (1) YAML loading with _load_yaml/_get_value helpers, (2) try/except guarded imports for torch/Isaac Lab/skrl, (3) argparse CLI with --task, --num_envs, --headless, --max_iterations, --checkpoint_freq, --output_dir, --seed overrides, (4) logging module throughout, (5) creates env from so101_env.py wrapped for skrl, (6) configures PPO agent with PolicyNetwork (GaussianMixin) and ValueNetwork (DeterministicMixin) using config.yaml hyperparameters, (7) runs training via SequentialTrainer, (8) saves checkpoints to training/rl/checkpoints/. Verification passed: SYNTAX OK + --help works correctly.",
+          "updated_at": "2026-03-01T07:20:05.219056+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-eval",
+      "name": "Evaluation Script",
+      "type": "implementation",
+      "description": "Create evaluation script that can assess both IL and RL trained policies in the Isaac Sim/Lab environment. Reports success rate, trajectory error, and other metrics.",
+      "depends_on": [
+        "phase-1-il-setup",
+        "phase-2-rl-setup"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Create training/eval/ directory structure with __init__.py",
+          "service": "training_eval",
+          "files_to_modify": [],
+          "files_to_create": [
+            "training/eval/__init__.py"
+          ],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "test -f training/eval/__init__.py && echo 'OK'",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "Created training/eval/__init__.py with module docstring comment. Verification passed.",
+          "updated_at": "2026-03-01T07:21:21.828255+00:00"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Create training/eval/evaluate_policy.py — Policy evaluation script. Features: (1) Load trained policy checkpoint (IL or RL), (2) Initialize Isaac Sim/Lab evaluation environment, (3) Run N episodes with the policy, (4) Compute metrics: success rate, mean trajectory error, total reward, (5) Log results with logging module, (6) argparse CLI: --policy_type (il|rl), --checkpoint_path, --task, --num_episodes, --headless. Guard imports. Follow scripts/validate_dataset.py pattern for validation reporting.",
+          "service": "training_eval",
+          "files_to_modify": [],
+          "files_to_create": [
+            "training/eval/evaluate_policy.py"
+          ],
+          "patterns_from": [
+            "scripts/validate_dataset.py",
+            "scripts/collect_data.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python3 -c \"import ast; ast.parse(open('training/eval/evaluate_policy.py').read()); print('SYNTAX OK')\" && python3 training/eval/evaluate_policy.py --help",
+            "expected": "SYNTAX OK"
+          },
+          "status": "completed",
+          "notes": "Created training/eval/evaluate_policy.py — Policy evaluation script. Features: (1) Load trained IL (ACT) or RL (PPO) checkpoint, (2) Initialize Isaac Sim/Lab evaluation environment (ManagerBasedRLEnv for RL, ManagerBasedEnv for IL), (3) Run N episodes with the policy, (4) Compute metrics: success rate, mean trajectory error, total reward, std reward, mean episode steps, (5) EvaluationReport class following scripts/validate_dataset.py ValidationReport pattern with PASS/FAIL checks and metrics, (6) argparse CLI: --policy_type (il|rl), --checkpoint_path, --task, --num_episodes, --max_steps, --headless, --success_threshold, --il_config, --rl_config. All heavy imports (torch, numpy, LeRobot ACT, Isaac Lab, Isaac Sim, skrl) guarded with try/except. Follows scripts/validate_dataset.py and scripts/collect_data.py patterns for YAML loading (_load_yaml/_get_value helpers), logging, CLI structure, and Korean docstrings. Verification passed: SYNTAX OK + --help works correctly with all expected arguments.",
+          "updated_at": "2026-03-01T07:24:19.299483+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-verification",
+      "name": "Verification and Validation",
+      "type": "integration",
+      "description": "Verify all created files: syntax validation, YAML config validation, CLI --help testing, import structure verification. This phase validates the implementation without requiring Isaac Sim/LeRobot runtime.",
+      "depends_on": [
+        "phase-3-eval"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Syntax validation — Parse all created Python and YAML files to verify they are syntactically correct. Run all Python scripts with --help to verify argparse works. Verify all files have proper docstrings following the project convention.",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "python3 -c \"import ast, yaml, sys; errors=[]; [errors.append(f'{f}: {e}') if not (lambda f: (ast.parse(open(f).read()), True)[-1])(f) else None for f in ['training/il/train_act.py','training/rl/so101_env.py','training/rl/train_rl.py','training/eval/evaluate_policy.py']]; [yaml.safe_load(open(f)) for f in ['training/il/config.yaml','training/rl/config.yaml']]; print('ALL SYNTAX OK')\"",
+            "expected": "ALL SYNTAX OK"
+          },
+          "status": "completed",
+          "notes": "Syntax validation passed for all files:\n- Python AST parse: train_act.py, so101_env.py, train_rl.py, evaluate_policy.py — ALL OK\n- YAML safe_load: training/il/config.yaml, training/rl/config.yaml — ALL OK\n- CLI --help: train_act.py, train_rl.py, evaluate_policy.py — ALL OK (argparse works correctly)\n- Docstrings: All 4 Python scripts have proper module-level docstrings following project convention (Korean docstrings with 목적/사용법/필요 환경/Phase/상태 sections)\n- YAML configs follow params/*.yaml schema (value/unit/range/description)\n- No fixes needed — all files were syntactically correct",
+          "updated_at": "2026-03-01T07:26:41.766429+00:00"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Config cross-reference validation — Verify training configs reference correct params from params/*.yaml. Check that structural sections (policy, training, algorithm, environment) are present.",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "python3 -c \"import yaml; il=yaml.safe_load(open('training/il/config.yaml')); rl=yaml.safe_load(open('training/rl/config.yaml')); assert 'policy' in il; assert 'training' in il; assert 'algorithm' in rl; assert 'environment' in rl; print('CONFIG VALIDATION OK')\"",
+            "expected": "CONFIG VALIDATION OK"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "CLI help verification — Run --help for all Python scripts to verify argparse is properly configured and all expected CLI arguments are present.",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "python3 training/il/train_act.py --help && python3 training/rl/train_rl.py --help && python3 training/eval/evaluate_policy.py --help && echo 'ALL CLI HELP OK'",
+            "expected": "ALL CLI HELP OK"
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 4,
+    "total_subtasks": 10,
+    "services_involved": [
+      "training_il",
+      "training_rl",
+      "training_eval"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 2,
+      "parallel_groups": [
+        {
+          "phases": [
+            "phase-1-il-setup",
+            "phase-2-rl-setup"
+          ],
+          "reason": "Both depend on nothing (no dependencies), modify different file sets (training/il/ vs training/rl/)"
+        }
+      ],
+      "recommended_workers": 2,
+      "speedup_estimate": "1.5x faster than sequential — phases 1 and 2 can run in parallel"
+    },
+    "startup_command": "source auto-claude/.venv/bin/activate && python auto-claude/run.py --spec verify-008-phase6-training-loop --parallel 2"
+  },
+  "verification_strategy": {
+    "risk_level": "medium",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "syntax_validation",
+      "config_validation",
+      "cli_help"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "All 6 files created and syntactically valid",
+      "training/il/train_act.py can parse config and show --help",
+      "training/il/config.yaml has all ACT hyperparameters from spec (chunk_size=100, dim_model=512, etc.)",
+      "training/rl/so101_env.py defines ArticulationCfg + Reach task with SO101_CFG",
+      "training/rl/train_rl.py can parse config and show --help",
+      "training/rl/config.yaml has PPO hyperparameters and domain randomization settings",
+      "training/eval/evaluate_policy.py can show --help and supports both IL/RL via --policy_type",
+      "All configs follow params/*.yaml schema (value/unit/range/description)",
+      "All scripts follow project patterns (import guards, logging, argparse, headless-first, Korean docstrings)"
+    ],
+    "verification_steps": [
+      {
+        "name": "Python Syntax Validation",
+        "command": "python3 -c \"import ast; [ast.parse(open(f).read()) for f in ['training/il/train_act.py','training/rl/so101_env.py','training/rl/train_rl.py','training/eval/evaluate_policy.py']]; print('OK')\"",
+        "expected_outcome": "All Python files parse without syntax errors",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "YAML Validation",
+        "command": "python3 -c \"import yaml; [yaml.safe_load(open(f)) for f in ['training/il/config.yaml','training/rl/config.yaml']]; print('OK')\"",
+        "expected_outcome": "All YAML files load without errors",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "CLI Help Test",
+        "command": "python3 training/il/train_act.py --help && python3 training/rl/train_rl.py --help && python3 training/eval/evaluate_policy.py --help",
+        "expected_outcome": "All scripts show help without errors",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "Medium risk — new files following established patterns. Cannot run actual training (requires GPU + Isaac Sim runtime). Verification limited to syntax, config, and CLI validation. Full runtime verification requires manual testing in the soarm conda environment with Isaac Sim 5.1.0."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": true,
+      "commands": [
+        "python3 -c \"import ast; [ast.parse(open(f).read()) for f in ['training/il/train_act.py','training/rl/so101_env.py','training/rl/train_rl.py','training/eval/evaluate_policy.py']]; print('OK')\"",
+        "python3 -c \"import yaml; [yaml.safe_load(open(f)) for f in ['training/il/config.yaml','training/rl/config.yaml']]; print('OK')\""
+      ],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": true,
+      "commands": [
+        "python3 training/il/train_act.py --help",
+        "python3 training/rl/train_rl.py --help",
+        "python3 training/eval/evaluate_policy.py --help"
+      ],
+      "services_to_test": [
+        "training_il",
+        "training_rl",
+        "training_eval"
+      ]
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": [],
+      "notes": "E2E requires Isaac Sim 5.1.0 + GPU runtime. Must be tested manually: conda activate soarm && python training/il/train_act.py --steps 1000 && python training/rl/train_rl.py --task Isaac-SO101-Reach-v0 --num_envs 1024 --headless"
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": []
+    },
+    "database_verification": {
+      "required": false,
+      "checks": []
+    }
+  },
+  "qa_signoff": null,
+  "last_updated": "2026-03-01T07:26:41.766440+00:00"
+}
