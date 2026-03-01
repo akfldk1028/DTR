@@ -1,0 +1,170 @@
+# vla_eval.yaml — SO-ARM101 VLA 평가 파라미터 스키마
+#
+# 이 파일은 VLA(Vision-Language-Action) 모델의 시뮬레이션 평가에 사용되는
+# 파라미터를 정의한다.
+# Phase 7: VLA 확장 — instruction→action 경로 + 시뮬 평가
+#
+# 스키마 규칙:
+#   value     — 현재 값
+#   unit      — SI 단위
+#   range     — 유효 범위 [min, max]
+#   description — 파라미터 설명
+
+# --- 모델 설정 ---
+model:
+  type:
+    value: "dummy"
+    unit: "string"
+    range: ["dummy", "smolvla", "openvla", "groot"]
+    description: "VLA 모델 타입 (dummy=제로 액션 베이스라인, smolvla=LeRobot 450M, openvla=7B, groot=NVIDIA GR00T N1.5 3B)"
+
+  checkpoint_path:
+    value: ""
+    unit: "path"
+    description: "모델 체크포인트 경로 (dummy 모델은 빈 문자열 허용)"
+
+  device:
+    value: "cuda"
+    unit: "string"
+    range: ["cuda", "cpu"]
+    description: "모델 추론 디바이스"
+
+  quantization:
+    value: "none"
+    unit: "string"
+    range: ["none", "4bit", "8bit"]
+    description: "모델 양자화 설정 (openvla 7B 추론 시 4bit 권장)"
+
+# --- 평가 설정 ---
+evaluation:
+  num_episodes:
+    value: 10
+    unit: "count"
+    range: [1, 1000]
+    description: "평가 에피소드 수"
+
+  max_steps_per_episode:
+    value: 500
+    unit: "steps"
+    range: [50, 10000]
+    description: "에피소드당 최대 스텝 수"
+
+  instruction:
+    value: "pick up the orange from the table"
+    unit: "string"
+    description: "VLA 모델에 전달할 태스크 지시문 (instruction)"
+
+  seed:
+    value: 42
+    unit: "dimensionless"
+    range: [0, 2147483647]
+    description: "평가 재현성을 위한 랜덤 시드"
+
+  dry_run:
+    value: false
+    unit: "boolean"
+    description: "Isaac Sim 없이 파이프라인 검증 모드 (mock 관측 사용)"
+
+# --- 성공 기준 (Success Criteria) ---
+success_criteria:
+  success_threshold:
+    value: 0.8
+    unit: "dimensionless"
+    range: [0.0, 1.0]
+    description: "성공률 임계값 (이 값 이상이면 평가 통과)"
+
+  trajectory_error_tolerance:
+    value: 0.05
+    unit: "rad"
+    range: [0.001, 1.0]
+    description: "궤적 오차 허용 범위 (조인트 공간 L2 노름)"
+
+  min_episode_length:
+    value: 10
+    unit: "steps"
+    range: [1, 1000]
+    description: "유효 에피소드 최소 길이 (이보다 짧으면 실패 처리)"
+
+  gripper_close_threshold:
+    value: 0.5
+    unit: "rad"
+    range: [0.0, 1.7453]
+    description: "그리퍼 닫힘 판정 임계값 (그립 성공 판단용)"
+
+# --- 메트릭 로깅 설정 ---
+metrics:
+  log_dir:
+    value: "logs/vla_eval"
+    unit: "path"
+    description: "평가 메트릭 로그 출력 디렉토리"
+
+  log_frequency:
+    value: 1
+    unit: "episodes"
+    range: [1, 100]
+    description: "메트릭 로깅 주기 (N 에피소드마다 기록)"
+
+  save_trajectories:
+    value: true
+    unit: "boolean"
+    description: "에피소드별 궤적 데이터 저장 여부"
+
+  save_videos:
+    value: false
+    unit: "boolean"
+    description: "평가 에피소드 비디오 저장 여부"
+
+  metric_names:
+    value: ["success_rate", "mean_trajectory_error", "mean_episode_length"]
+    unit: "string[]"
+    description: "기록할 메트릭 이름 목록"
+
+# --- Isaac Sim 환경 설정 ---
+isaac_sim:
+  task:
+    value: "LeIsaac-SO101-PickOrange-v0"
+    unit: "string"
+    description: "Isaac Sim 평가 환경 태스크 이름"
+
+  num_envs:
+    value: 1
+    unit: "count"
+    range: [1, 16]
+    description: "병렬 평가 환경 수"
+
+  render:
+    value: false
+    unit: "boolean"
+    description: "평가 중 렌더링 활성화 여부"
+
+# --- 관측 설정 ---
+observation:
+  image_width:
+    value: 640
+    unit: "px"
+    range: [320, 1920]
+    description: "관측 이미지 가로 해상도"
+
+  image_height:
+    value: 480
+    unit: "px"
+    range: [240, 1080]
+    description: "관측 이미지 세로 해상도"
+
+  image_channels:
+    value: 3
+    unit: "channels"
+    range: [1, 4]
+    description: "관측 이미지 채널 수 (RGB=3)"
+
+  state_dim:
+    value: 6
+    unit: "dimensions"
+    range: [6, 6]
+    description: "관측 상태 차원 (6 DOF 조인트 위치)"
+
+  action_dim:
+    value: 6
+    unit: "dimensions"
+    range: [6, 6]
+    description: "액션 차원 (6 DOF 목표 조인트 위치)"
