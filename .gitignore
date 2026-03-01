@@ -15,6 +15,13 @@
 *.safetensors
 
 # ===== 데이터셋 (대용량) =====
+# LeRobot v2 nested structure: datasets/<name>/data/, datasets/<name>/videos/
+# Keep datasets/<name>/meta/ in git (small JSON metadata for reproducibility)
+datasets/*/data/
+datasets/*/videos/
+*.parquet
+
+# Legacy flat structure (backward compat)
 datasets/data/
 
 # ===== Python =====
