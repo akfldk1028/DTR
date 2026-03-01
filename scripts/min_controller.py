@@ -22,7 +22,6 @@ import logging
 import math
 import os
 import sys
-import time
 
 
 def setup_logger(log_path):

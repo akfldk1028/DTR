@@ -26,7 +26,6 @@ Phase: 6
 
 import logging
 import math
-import sys
 from pathlib import Path
 
 import yaml

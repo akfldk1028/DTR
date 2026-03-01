@@ -318,18 +318,6 @@ class EvalRunner:
 
         return image, state
 
-    def _apply_action(self, action: "np.ndarray"):
-        """Apply predicted action to the environment.
-
-        Args:
-            action: 6-DOF 관절 위치 타겟, shape (action_dim,).
-        """
-        if self.dry_run:
-            return
-
-        # Apply action to Isaac Sim environment
-        self._env.step(action)
-
     def _compute_step_error(
         self, action: "np.ndarray", state: "np.ndarray"
     ) -> float:

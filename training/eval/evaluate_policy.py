@@ -778,9 +778,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--headless",
-        action="store_true",
-        default=False,
-        help="헤드리스 모드 (GUI 없이 평가)",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="헤드리스 모드 (기본: True, --no-headless로 GUI 활성화)",
     )
     parser.add_argument(
         "--success_threshold",
