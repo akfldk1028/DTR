@@ -162,7 +162,9 @@
             "command": "python -c \"import yaml; d=yaml.safe_load(open('params/data_pipeline.yaml')); checks=[]; checks.append('fps' in d and 'value' in d['fps'] and 'unit' in d['fps']); checks.append('camera' in d and 'width' in d['camera'] and 'value' in d['camera']['width']); checks.append('episode' in d and 'max_steps' in d['episode'] and 'value' in d['episode']['max_steps']); assert all(checks), 'Schema violations found'; print('YAML schema compliance OK')\"",
             "expected": "YAML schema compliance OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "YAML schema compliance verified. All leaf parameter nodes in params/data_pipeline.yaml follow the project schema convention (value/unit/description fields) as established in control.yaml and physics.yaml. Checked: fps (value/unit/range/description), camera sub-params (width/height/channels/camera_name), joint_names, num_joints, episode sub-params (min_steps/max_steps/num_episodes), dataset sub-params (output_dir/repo_id/task_name), features sub-params (observation_state/observation_images/action with dtype+shape), isaac_sim sub-params (task/num_envs/use_lerobot_recorder). Deep recursive check confirmed all 8 top-level groups and their leaf nodes comply with the schema convention. No modifications needed.",
+          "updated_at": "2026-03-01T06:37:41.194696+00:00"
         }
       ]
     },
@@ -191,7 +193,9 @@
             "command": "python -c \"import ast; t1=ast.parse(open('scripts/collect_data.py').read()); t2=ast.parse(open('scripts/validate_dataset.py').read()); d1=ast.get_docstring(t1); d2=ast.get_docstring(t2); assert d1 and len(d1)>50, 'collect_data.py missing docstring'; assert d2 and len(d2)>50, 'validate_dataset.py missing docstring'; assert 'Phase' in d1, 'collect_data missing Phase ref'; assert 'Phase' in d2, 'validate_dataset missing Phase ref'; print('Docstrings OK')\"",
             "expected": "Docstrings OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Verification passed. Both scripts/collect_data.py (678 chars) and scripts/validate_dataset.py (853 chars) have comprehensive module-level docstrings containing all required sections matching the pattern files (sanity_checks.py, import_urdf_to_isaac.py): script name/description, 목적 (purpose), 사용법 (usage), 필요 환경 (required environment), Phase: 5, 상태 (status). No modifications needed — docstrings were already compliant.",
+          "updated_at": "2026-03-01T06:38:49.844762+00:00"
         },
         {
           "id": "subtask-4-2",
@@ -502,5 +506,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T06:35:55.622117+00:00"
+  "last_updated": "2026-03-01T06:38:49.844776+00:00"
 }
