@@ -20,14 +20,20 @@
       "path": "./scripts",
       "tech_stack": ["python", "bash"],
       "description": "Utility scripts (download_assets, sanity_checks, import_urdf_to_isaac)"
+    },
+    "training": {
+      "path": "./training",
+      "tech_stack": ["python", "pytorch"],
+      "description": "Training code for IL/RL/VLA policies. Subfolders: il/, rl/, vla/"
     }
   },
   "infrastructure": {
     "docker": false,
     "database": null,
-    "isaac_sim_required": false,
+    "isaac_sim_required": true,
     "python_version": "3.11",
-    "conda_env": "soarm"
+    "conda_env": "soarm",
+    "gpu": "NVIDIA RTX 4090 Laptop (16GB VRAM)"
   },
   "conventions": {
     "linter": null,
@@ -36,6 +42,8 @@
     "documentation_language": "korean",
     "code_language": "english",
     "naming": "snake_case for files, YAML keys, Python vars/functions; PascalCase for classes",
-    "yaml_schema": "Each parameter has: value, unit, range, description fields"
+    "yaml_schema": "Each parameter has: value, unit, range, description fields",
+    "import_guard": "Heavy dependencies (isaaclab, lerobot, numpy) guarded with try/except",
+    "logging": "Use logging module, never print() (Isaac Sim captures stdout)"
   }
 }
