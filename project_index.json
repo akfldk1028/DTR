@@ -1,41 +1,40 @@
 {
   "project_type": "single",
   "services": {
-    "params": {
-      "path": "./params",
-      "tech_stack": ["yaml"],
-      "description": "Physics and control parameter YAML files (SSOT for simulation/control)"
-    },
-    "robot_description": {
-      "path": "./robot_description",
-      "tech_stack": ["urdf", "stl"],
-      "description": "Robot definition SSOT-A (URDF/Xacro/meshes)"
-    },
-    "docs": {
-      "path": "./docs",
-      "tech_stack": ["markdown"],
-      "description": "Project documentation including phase-checklist"
-    },
     "scripts": {
-      "path": "./scripts",
-      "tech_stack": ["python", "bash"],
-      "description": "Utility scripts (download_assets, sanity_checks, import_urdf_to_isaac)"
+      "path": ".",
+      "tech_stack": ["python", "yaml", "lerobot", "isaaclab"],
+      "port": null,
+      "dev_command": null,
+      "test_command": "python -m py_compile scripts/collect_data.py && python -m py_compile scripts/validate_dataset.py"
     }
   },
   "infrastructure": {
     "docker": false,
     "database": null,
-    "isaac_sim_required": false,
-    "python_version": "3.11",
-    "conda_env": "soarm"
+    "gpu_required": true,
+    "conda_env": "soarm",
+    "isaac_sim_version": "5.1.0",
+    "lerobot_version": "0.4.4"
   },
   "conventions": {
     "linter": null,
     "formatter": null,
-    "testing": "python3 -c inline scripts (no pytest framework)",
-    "documentation_language": "korean",
-    "code_language": "english",
-    "naming": "snake_case for files, YAML keys, Python vars/functions; PascalCase for classes",
-    "yaml_schema": "Each parameter has: value, unit, range, description fields"
+    "testing": "manual",
+    "language": {
+      "docs": "korean",
+      "code": "english"
+    },
+    "naming": {
+      "files": "snake_case",
+      "folders": "snake_case",
+      "python_vars": "snake_case",
+      "python_classes": "PascalCase",
+      "yaml_keys": "snake_case",
+      "constants": "UPPER_SNAKE_CASE"
+    },
+    "params_from_yaml": true,
+    "docstrings_required": true,
+    "external_links_in_references_md": true
   }
 }
