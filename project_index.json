@@ -1,0 +1,40 @@
+{
+  "project_type": "single",
+  "services": {
+    "scripts": {
+      "path": ".",
+      "tech_stack": ["python", "yaml", "lerobot", "isaaclab"],
+      "port": null,
+      "dev_command": null,
+      "test_command": "python -m py_compile scripts/collect_data.py && python -m py_compile scripts/validate_dataset.py"
+    }
+  },
+  "infrastructure": {
+    "docker": false,
+    "database": null,
+    "gpu_required": true,
+    "conda_env": "soarm",
+    "isaac_sim_version": "5.1.0",
+    "lerobot_version": "0.4.4"
+  },
+  "conventions": {
+    "linter": null,
+    "formatter": null,
+    "testing": "manual",
+    "language": {
+      "docs": "korean",
+      "code": "english"
+    },
+    "naming": {
+      "files": "snake_case",
+      "folders": "snake_case",
+      "python_vars": "snake_case",
+      "python_classes": "PascalCase",
+      "yaml_keys": "snake_case",
+      "constants": "UPPER_SNAKE_CASE"
+    },
+    "params_from_yaml": true,
+    "docstrings_required": true,
+    "external_links_in_references_md": true
+  }
+}
