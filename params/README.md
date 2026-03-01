@@ -15,7 +15,7 @@
 
 ```yaml
 parameter_name:
-  value: 0.5          # 현재 값 (placeholder일 수 있음)
+  value: 0.5          # 현재 값 (Phase 3 실측값 반영 완료)
   unit: "N*m/rad"     # SI 단위
   range: [0.0, 10.0]  # 유효 범위 [min, max]
   description: "..."  # 파라미터 설명

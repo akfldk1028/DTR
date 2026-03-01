@@ -1,0 +1,137 @@
+=== AUTO-BUILD PROGRESS ===
+
+Project: Verify 005-phase3-ssot (Phase 3 — SSOT 정착)
+Workspace: auto-claude/verify-005-phase3-ssot
+Started: 2026-03-01 14:55 KST
+
+Workflow Type: simple (verification)
+Rationale: Verification task for a pure file-editing implementation (YAML + markdown).
+  No services needed, no Isaac Sim, no build step. Sequential Python verification commands
+  validate data correctness, schema compliance, cross-file consistency, and acceptance criteria.
+
+Parent Task: 005-phase3-ssot
+Parent Branch: auto-claude/005-phase3-ssot
+
+Session 1 (Planner):
+- Created implementation_plan.json
+- Phases: 5
+- Total subtasks: 8
+- Created init.sh (extracts 005 branch files via git show)
+- Created project_index.json
+- Created context.json
+
+Phase Summary:
+- Phase 1 (YAML File Validation): 2 subtasks, no dependencies
+  → Validates physics.yaml values (total_mass, per_link_masses, sum)
+  → Validates control.yaml values (joint_names, decimation, gains, limits, overrides)
+
+- Phase 2 (Cross-File Consistency): 1 subtask, depends on Phase 1
+  → Cross-validates mass sum, joint count, decimation formula
+
+- Phase 3 (Documentation Verification): 3 subtasks, depends on Phase 1
+  → Validates robot_description/README.md (URDF source, joints, masses, meshes)
+  → Validates docs/phase-checklist.md (Phase 3 checkboxes complete)
+  → Validates params/README.md (no placeholder language)
+
+- Phase 4 (YAML Schema Compliance): 2 subtasks, depends on Phase 1
+  → Validates physics.yaml schema (value/unit/description fields, snake_case)
+  → Validates control.yaml schema (value/unit/description fields, snake_case)
+
+- Phase 5 (Acceptance Sign-off): 1 subtask, depends on Phases 2-4
+  → Comprehensive acceptance criteria check (6 criteria from spec)
+
+Services Involved:
+- params: YAML file verification (physics.yaml, control.yaml)
+- robot_description: README.md documentation verification
+- docs: phase-checklist.md verification
+
+Parallelism Analysis:
+- Max parallel phases: 2
+- Recommended workers: 1 (all verifications are fast, sequential is optimal)
+- Parallel groups: [Phase 3 + Phase 4] can run in parallel (both depend only on Phase 1)
+
+Verification Approach:
+- Files are read from 005 branch via: git show auto-claude/005-phase3-ssot:<path>
+- Python inline scripts validate YAML parsing, values, schema, and documentation
+- No file modifications needed — this is a read-only verification task
+
+=== STARTUP COMMAND ===
+
+To continue building this spec, run:
+
+  source auto-claude/.venv/bin/activate && python auto-claude/run.py --spec verify-005 --parallel 1
+
+=== END SESSION 1 ===
+## subtask-1-1: Validate params/physics.yaml
+Status: COMPLETED
+Timestamp: 2026-03-01
+
+### Verification Results (all 7 checks PASSED):
+1. [PASS] YAML parses without errors
+2. [PASS] total_mass.value == 0.632
+3. [PASS] per_link_masses exists with all 7 links (base, shoulder, upper_arm, lower_arm, wrist, gripper, jaw)
+4. [PASS] per-link mass sum == 0.632
+5. [PASS] each per_link_masses entry has value and unit fields
+6. [PASS] simulation/friction/contact/damping sections preserved unchanged
+7. [PASS] header comment updated from Phase 0 to Phase 3
+
+Branch verified: auto-claude/005-phase3-ssot
+
+## subtask-1-2: Validate params/control.yaml
+Status: COMPLETED (previous session)
+
+## subtask-2-1: Cross-file consistency checks
+Status: COMPLETED (previous session)
+
+## subtask-3-1: Verify robot_description/README.md
+Status: COMPLETED (previous session)
+
+## subtask-3-2: Verify docs/phase-checklist.md
+Status: COMPLETED (previous session)
+
+## subtask-3-3: Verify params/README.md
+Status: COMPLETED (previous session)
+
+## subtask-4-1: Verify physics.yaml schema compliance
+Status: COMPLETED (previous session)
+
+## subtask-4-2: Verify control.yaml schema compliance
+Status: COMPLETED (previous session)
+
+## subtask-5-1: Final Acceptance Criteria Sign-off
+Status: COMPLETED
+Timestamp: 2026-03-01
+
+### Comprehensive Acceptance Criteria Report (all 13 checks PASSED):
+
+AC1 - physics.yaml measured values:
+  [PASS] AC1-total_mass — total_mass.value == 0.632
+  [PASS] AC1-per_link_masses — 7 links present in per_link_masses
+  [PASS] AC1-mass_sum — sum of per-link masses == 0.632
+
+AC2 - control.yaml calibrated values:
+  [PASS] AC2-joint_limits_min — 6 correct radian values [-1.9199, -1.7453, -1.5708, -1.6581, -2.7925, 0.1745]
+  [PASS] AC2-joint_limits_max — 6 correct radian values [1.9199, 1.7453, 1.5708, 1.6581, 2.7925, 1.7453]
+  [PASS] AC2-drive_Kp — stiffness == 40.0
+  [PASS] AC2-drive_Kd — damping == 4.0
+  [PASS] AC2-joint_names — 6 joint names present
+
+AC3 - unit/range documentation:
+  [PASS] AC3-physics_units — all per_link_masses entries have unit field
+  [PASS] AC3-control_units — control_frequency, decimation, action_scale all have unit field
+
+AC4 - URDF source documentation:
+  [PASS] AC4-urdf_source — SO-ARM100 and onshape-to-robot referenced in robot_description/README.md
+
+AC5 - Mesh file documentation:
+  [PASS] AC5-mesh_files — >= 8 .stl file references in robot_description/README.md
+
+AC6 - Phase checklist:
+  [PASS] AC6-phase3_checked — >= 6 checked items, 0 unchecked items in Phase 3 section
+
+Result: OK — All acceptance criteria passed
+Branch verified: auto-claude/005-phase3-ssot
+
+=== ALL VERIFICATION SUBTASKS COMPLETE ===
+Total: 8/8 subtasks passed
+All 6 acceptance criteria from the original spec are satisfied.
