@@ -25,6 +25,7 @@ decimation:
 # --- 조인트 이름 ---
 joint_names:
   value: [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper]
+  unit: "N/A"
   description: "6 DOF 조인트 이름 리스트 (URDF 순서)"
 
 # --- 조인트 드라이브 게인 (Position Control) ---
