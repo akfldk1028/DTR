@@ -1,6 +1,6 @@
 ========================================================================
 URDF Cross-Validation Report
-Generated: 2026-03-01T06:49:42.733047+00:00
+Generated: 2026-03-01T06:56:09.570872+00:00
 URDF: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/urdf/so101_new_calib.urdf
 Control YAML: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/params/control.yaml
 Tolerance: 0.05 rad
