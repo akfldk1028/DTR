@@ -1,0 +1,41 @@
+{
+  "project_type": "single",
+  "services": {
+    "params": {
+      "path": "./params",
+      "tech_stack": ["yaml"],
+      "description": "Physics and control parameter YAML files (SSOT for simulation/control)"
+    },
+    "robot_description": {
+      "path": "./robot_description",
+      "tech_stack": ["urdf", "stl"],
+      "description": "Robot definition SSOT-A (URDF/Xacro/meshes)"
+    },
+    "docs": {
+      "path": "./docs",
+      "tech_stack": ["markdown"],
+      "description": "Project documentation including phase-checklist"
+    },
+    "scripts": {
+      "path": "./scripts",
+      "tech_stack": ["python", "bash"],
+      "description": "Utility scripts (download_assets, sanity_checks, import_urdf_to_isaac)"
+    }
+  },
+  "infrastructure": {
+    "docker": false,
+    "database": null,
+    "isaac_sim_required": false,
+    "python_version": "3.11",
+    "conda_env": "soarm"
+  },
+  "conventions": {
+    "linter": null,
+    "formatter": null,
+    "testing": "python3 -c inline scripts (no pytest framework)",
+    "documentation_language": "korean",
+    "code_language": "english",
+    "naming": "snake_case for files, YAML keys, Python vars/functions; PascalCase for classes",
+    "yaml_schema": "Each parameter has: value, unit, range, description fields"
+  }
+}

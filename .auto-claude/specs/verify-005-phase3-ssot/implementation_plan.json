@@ -82,7 +82,9 @@
             "command": "git show auto-claude/005-phase3-ssot:params/physics.yaml > /tmp/verify_physics.yaml && git show auto-claude/005-phase3-ssot:params/control.yaml > /tmp/verify_control.yaml && python3 -c \"\nimport yaml, sys\nphy = yaml.safe_load(open('/tmp/verify_physics.yaml'))\nctl = yaml.safe_load(open('/tmp/verify_control.yaml'))\nerrs = []\n# 1. mass sum == total_mass\nplm = phy['mass']['per_link_masses']\nmass_sum = round(sum(v['value'] for v in plm.values()), 3)\ntotal = phy['mass']['total_mass']['value']\nif mass_sum != total:\n    errs.append(f'mass sum {mass_sum} != total_mass {total}')\n# 2. joint count consistency\nn_names = len(ctl['joint_names']['value'])\nn_min = len(ctl['joint_limits']['position_min']['value'])\nn_max = len(ctl['joint_limits']['position_max']['value'])\nn_vel = len(ctl['joint_limits']['velocity_max']['value'])\nif not (n_names == n_min == n_max == n_vel == 6):\n    errs.append(f'joint count mismatch: names={n_names}, min={n_min}, max={n_max}, vel={n_vel}')\n# 3. decimation consistency\ndt = phy['simulation']['timestep']['value']\nfreq = ctl['control_frequency']['value']\nexpected_dec = int(1.0 / (dt * freq))\nactual_dec = ctl['decimation']['value']\nif actual_dec != expected_dec:\n    errs.append(f'decimation={actual_dec}, expected 1/({dt}*{freq})={expected_dec}')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: Cross-validation passed')\n\"",
             "expected": "OK: Cross-validation passed"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "All 5 cross-validation checks PASSED: (1) per_link_masses sum 0.632 == total_mass 0.632, (2) joint_names/position_min/position_max/velocity_max all have 6 entries, (3) decimation=10 == 1/(0.005*20.0), (4) robot_description/README.md mass table matches physics.yaml per_link_masses for all 7 links, (5) robot_description/README.md joint table matches control.yaml joint_names for all 6 joints",
+          "updated_at": "2026-03-01T06:05:24.777520+00:00"
         }
       ]
     },
@@ -318,5 +320,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T06:03:30.453841+00:00"
+  "last_updated": "2026-03-01T06:05:24.777533+00:00"
 }
