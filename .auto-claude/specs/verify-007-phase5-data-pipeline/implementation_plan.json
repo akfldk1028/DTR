@@ -342,8 +342,9 @@
             "command": "python -c \"import yaml; d=yaml.safe_load(open('params/data_pipeline.yaml')); feat_cfg=d['features']; cam=d['camera']; jn=d['joint_names']['value']; img_shape=(cam['height']['value'],cam['width']['value'],cam['channels']['value']); state_shape=tuple(feat_cfg['observation_state']['shape']['value']); action_shape=tuple(feat_cfg['action']['shape']['value']); assert img_shape==(480,640,3), f'img_shape={img_shape}'; assert state_shape==(6,), f'state_shape={state_shape}'; assert action_shape==(6,), f'action_shape={action_shape}'; assert len(jn)==6, f'joint_names count={len(jn)}'; print('build_features() logic OK')\"",
             "expected": "build_features() logic OK"
           },
-          "status": "pending",
-          "notes": "This verifies the pipeline params to feature schema conversion works correctly, matching what build_features() in collect_data.py would produce."
+          "status": "completed",
+          "notes": "Verification passed. build_features() logic correctly produces feature schemas from params/data_pipeline.yaml:\n- img_shape = (480, 640, 3) ✓ — matches camera height/width/channels from YAML\n- state_shape = (6,) ✓ — matches features.observation_state.shape from YAML\n- action_shape = (6,) ✓ — matches features.action.shape from YAML\n- joint_names count = 6 ✓ — all 6 DOF joint names present (shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper)\n\nAll assertions passed, confirming that the YAML parameter structure correctly maps to the LeRobot v2 feature schema that build_features() in collect_data.py would produce. No modifications needed — parameters were already correctly configured.",
+          "updated_at": "2026-03-01T06:47:51.457399+00:00"
         },
         {
           "id": "subtask-7-2",
@@ -357,7 +358,9 @@
             "command": "python -c \"import yaml; d=yaml.safe_load(open('params/data_pipeline.yaml')); feat_cfg=d['features']; expected={'observation.state':{'shape':tuple(feat_cfg['observation_state']['shape']['value']),'dtype':feat_cfg['observation_state']['dtype']['value']},'action':{'shape':tuple(feat_cfg['action']['shape']['value']),'dtype':feat_cfg['action']['dtype']['value']},'observation.images.camera':{'shape':tuple(feat_cfg['observation_images']['shape']['value']),'dtype':feat_cfg['observation_images']['dtype']['value']}}; assert expected['observation.state']['shape']==(6,); assert expected['action']['dtype']=='float32'; assert expected['observation.images.camera']['shape']==(480,640,3); assert expected['observation.images.camera']['dtype']=='video'; print('load_expected_features() logic OK')\"",
             "expected": "load_expected_features() logic OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Verification passed. load_expected_features() logic correctly produces feature schemas from params/data_pipeline.yaml:\n\n- observation.state: shape=(6,), dtype='float32' ✓\n- action: shape=(6,), dtype='float32' ✓  \n- observation.images.camera: shape=(480,640,3), dtype='video' ✓\n\nCross-script consistency verified: build_features() in collect_data.py and load_expected_features() in validate_dataset.py both use the same _get_value() helper pattern and produce compatible schemas from the same YAML source. The camera shape derived from individual camera params (height=480, width=640, channels=3) matches the features.observation_images.shape value [480,640,3]. No modifications needed — both functions were already correctly implemented and consistent with each other.",
+          "updated_at": "2026-03-01T06:49:07.191916+00:00"
         },
         {
           "id": "subtask-7-3",
@@ -518,5 +521,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T06:46:05.930560+00:00"
+  "last_updated": "2026-03-01T06:49:07.191922+00:00"
 }
