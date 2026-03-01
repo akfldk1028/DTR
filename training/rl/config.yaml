@@ -1,0 +1,176 @@
+# config.yaml — SO-ARM101 강화학습 (RL) 학습 설정
+#
+# Isaac Lab 환경에서 PPO 알고리즘을 사용한 강화학습 하이퍼파라미터를 정의한다.
+# skrl 프레임워크 기반으로 SO-ARM101 Reach task를 학습한다.
+#
+# 로봇 제어 파라미터(조인트 리밋, 드라이브 게인 등)는 params/control.yaml에서 참조한다.
+# 물리 파라미터(시뮬레이션 dt, 마찰, 질량 등)는 params/physics.yaml에서 참조한다.
+# 도메인 랜덤화 범위: 질량 ±20%, 마찰 ±30%, actuator 게인 ±15% (spec 기준)
+#
+# Phase 6: Isaac Lab RL baseline 학습
+
+# --- 환경 설정 (Isaac Lab) ---
+environment:
+  task_name: "Isaac-SO101-Reach-v0"   # Isaac Lab 등록 태스크 이름
+  num_envs: 1024                       # 병렬 환경 수 (GPU 기반 벡터 환경)
+  episode_length: 200                  # 에피소드 최대 스텝 수
+
+  # 시뮬레이션 설정 — params/physics.yaml → simulation.timestep 참조
+  sim_dt: 0.005                        # s — 시뮬레이션 시간 간격
+  # params/control.yaml → decimation 참조
+  decimation: 4                        # 시뮬레이션 스텝 / 제어 스텝 비율
+  # 제어 주기 = 1 / (sim_dt * decimation) = 50 Hz (실제 params/control.yaml: 20 Hz)
+
+  # 씬 설정
+  ground_plane: true                   # 지면 생성 여부
+  usd_path: "assets/usd/so101_follower.usd"  # 로봇 USD 에셋 경로
+
+  # params/physics.yaml → simulation.gravity 참조
+  gravity: [0.0, 0.0, -9.81]          # m/s² — 중력 가속도 벡터
+
+# --- 로봇 설정 (params/control.yaml 참조) ---
+# 아래 값들은 params/control.yaml과 일치해야 한다.
+# 학습 코드에서는 params/control.yaml을 직접 로드하여 교차검증한다.
+robot:
+  name: "so_arm101"
+  dof: 6                               # 6 DOF (5 회전 + 1 그리퍼)
+  joint_names:
+    - "shoulder_pan"
+    - "shoulder_lift"
+    - "elbow_flex"
+    - "wrist_flex"
+    - "wrist_roll"
+    - "gripper"
+
+  # params/control.yaml → drive 참조
+  arm_stiffness: 40.0                  # N*m/rad — 위치 제어 강성 (Kp)
+  arm_damping: 4.0                     # N*m*s/rad — 위치 제어 감쇠 (Kd)
+  gripper_stiffness: 40.0              # N*m/rad — 그리퍼 강성
+  gripper_damping: 4.0                 # N*m*s/rad — 그리퍼 감쇠
+
+  # params/control.yaml → joint_limits 참조
+  joint_position_min: [-3.14, -1.57, -1.57, -1.57, -1.57, 0.0]   # rad
+  joint_position_max: [3.14, 1.57, 1.57, 1.57, 1.57, 1.0]        # rad
+  joint_velocity_max: [6.28, 6.28, 6.28, 6.28, 6.28, 6.28]       # rad/s
+
+  # params/control.yaml → action_scale, control_frequency 참조
+  action_scale: 1.0                    # 정책 출력 스케일 팩터
+  control_frequency: 20.0              # Hz — 정책 실행 빈도
+
+# --- 관측 공간 (Observation Space) ---
+observation:
+  # 관측 그룹 정의
+  groups:
+    joint_pos:
+      dim: 6                           # 조인트 위치 [6 DOF]
+      normalize: true
+    joint_vel:
+      dim: 6                           # 조인트 속도 [6 DOF]
+      normalize: true
+    target_pos:
+      dim: 3                           # 목표 위치 [x, y, z]
+      normalize: true
+  total_dim: 15                        # 전체 관측 차원 (6 + 6 + 3)
+
+# --- 액션 공간 (Action Space) ---
+action:
+  dim: 6                               # 조인트 위치 목표값 [6 DOF]
+  type: "joint_position"               # 액션 타입 (위치 제어)
+  clip_range: [-1.0, 1.0]              # 정책 출력 클리핑 범위 (정규화)
+
+# --- 학습 설정 (PPO) ---
+training:
+  # 알고리즘
+  algorithm: "PPO"                     # Proximal Policy Optimization
+
+  # PPO 하이퍼파라미터
+  learning_rate: 3.0e-4                # 정책/가치 네트워크 학습률
+  num_epochs: 5                        # PPO 에포크 수 (미니배치 반복)
+  num_mini_batches: 4                  # 미니배치 분할 수
+  gamma: 0.99                          # 할인율
+  lambda_gae: 0.95                     # GAE (Generalized Advantage Estimation) λ
+  clip_range: 0.2                      # PPO 클리핑 범위
+  entropy_coeff: 0.01                  # 엔트로피 보너스 계수 (탐색 장려)
+  value_loss_coeff: 0.5                # 가치 함수 손실 계수
+  max_grad_norm: 1.0                   # 그래디언트 클리핑 norm
+
+  # 학습 루프
+  max_iterations: 1000                 # 최대 학습 반복 수
+  rollout_steps: 24                    # 롤아웃 스텝 수 (데이터 수집 길이)
+  save_freq: 100                       # 체크포인트 저장 주기 (iteration)
+  eval_freq: 50                        # 평가 주기 (iteration)
+  log_freq: 10                         # 로깅 주기 (iteration)
+
+  # 네트워크 아키텍처 — 공유 MLP Actor-Critic
+  network:
+    type: "shared_mlp"                 # 공유 MLP actor-critic
+    hidden_layers: [256, 128, 64]      # 히든 레이어 크기
+    activation: "elu"                  # 활성화 함수
+    init_type: "orthogonal"            # 가중치 초기화 방법
+
+  # 체크포인트
+  output_dir: "training/rl/checkpoints"
+  resume_from: null                    # 이전 체크포인트 경로 (재학습 시)
+
+  # 재현성
+  seed: 42
+
+# --- 보상 함수 (Reward) ---
+reward:
+  # 보상 항목별 가중치
+  reaching_weight: 1.0                 # 목표 도달 거리 보상 가중치
+  action_penalty_weight: 0.01          # 액션 크기 패널티 가중치 (에너지 효율)
+  orientation_weight: 0.1              # 엔드이펙터 방향 보상 가중치
+
+  # 보상 스케일
+  reward_scale: 1.0                    # 전체 보상 스케일 팩터
+
+  # 성공 판정
+  success_threshold: 0.02              # m — 목표 도달 판정 거리 임계값
+
+# --- 도메인 랜덤화 (Domain Randomization) ---
+# sim-to-real transfer를 위한 파라미터 랜덤화 설정
+# 기준값은 params/physics.yaml, params/control.yaml에서 참조한다.
+domain_randomization:
+  enabled: true                        # 도메인 랜덤화 활성화 여부
+
+  # 질량 랜덤화 — params/physics.yaml → mass 참조
+  # 기준 mass_scale: 1.0, 범위: ±20%
+  mass:
+    scale_range: [0.8, 1.2]            # 질량 스케일 범위 (기준값 대비)
+    description: "로봇 링크 질량 랜덤화 (±20%)"
+
+  # 마찰 랜덤화 — params/physics.yaml → friction 참조
+  # 기준 static_friction: 0.5, dynamic_friction: 0.4, 범위: ±30%
+  friction:
+    scale_range: [0.7, 1.3]            # 마찰 계수 스케일 범위 (기준값 대비)
+    description: "접촉 마찰 계수 랜덤화 (±30%)"
+
+  # 액추에이터 게인 랜덤화 — params/control.yaml → drive 참조
+  # 기준 stiffness: 40.0, damping: 4.0, 범위: ±15%
+  actuator_gain:
+    scale_range: [0.85, 1.15]          # 게인 스케일 범위 (기준값 대비)
+    description: "드라이브 강성/감쇠 랜덤화 (±15%)"
+
+  # 초기 상태 랜덤화
+  initial_state:
+    joint_pos_noise: 0.1               # rad — 초기 조인트 위치 노이즈 표준편차
+    joint_vel_noise: 0.05              # rad/s — 초기 조인트 속도 노이즈 표준편차
+    description: "에피소드 시작 시 초기 상태 랜덤화"
+
+  # 관측 노이즈
+  observation_noise:
+    joint_pos_noise: 0.01              # rad — 조인트 위치 관측 노이즈
+    joint_vel_noise: 0.1               # rad/s — 조인트 속도 관측 노이즈
+    description: "센서 노이즈 시뮬레이션 (sim-to-real gap)"
+
+  # 액션 지연 — params/control.yaml → action_delay 참조
+  action_delay:
+    range: [0, 2]                      # 스텝 — 액션 지연 범위
+    description: "통신 지연 시뮬레이션"
+
+# --- 로깅 설정 ---
+logging:
+  backend: "tensorboard"               # 로깅 백엔드 (tensorboard / wandb)
+  project_name: "soarm101_rl"          # 프로젝트 이름
+  log_dir: "training/rl/logs"          # 로그 저장 경로
