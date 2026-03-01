@@ -33,6 +33,7 @@ Phase: 4
 # ---------------------------------------------------------------------------
 import argparse
 import logging
+import math
 import sys
 from pathlib import Path
 
@@ -564,6 +565,176 @@ def log_conversion_summary(
 
 
 # ---------------------------------------------------------------------------
+# Articulation Verification
+# ---------------------------------------------------------------------------
+def verify_articulation(prim_path: str, control_params: dict) -> bool:
+    """Verify articulation joints after USD import.
+
+    Traverses the USD stage to find all revolute joints under the robot
+    prim and validates:
+      - Joint count matches EXPECTED_NUM_JOINTS (6)
+      - Joint names match EXPECTED_JOINT_NAMES
+      - Joint limits match params/control.yaml position_min/position_max
+
+    Args:
+        prim_path: USD prim path of the imported robot.
+        control_params: Dict loaded from params/control.yaml.
+
+    Returns:
+        True if all critical checks pass, False otherwise.
+    """
+    import omni.usd
+    from pxr import UsdPhysics
+
+    logger = logging.getLogger("urdf_to_usd")
+    logger.info("=== Articulation Verification ===")
+
+    stage = omni.usd.get_context().get_stage()
+    robot_prim = stage.GetPrimAtPath(prim_path)
+
+    if not robot_prim.IsValid():
+        logger.error("Robot prim not found at: %s", prim_path)
+        return False
+
+    # ---------------------------------------------------------------
+    # Step 1: Collect revolute joints under the robot prim
+    # ---------------------------------------------------------------
+    revolute_joints = []
+    for prim in stage.Traverse():
+        if not str(prim.GetPath()).startswith(prim_path):
+            continue
+        if prim.IsA(UsdPhysics.RevoluteJoint):
+            revolute_joints.append(prim)
+
+    # ---------------------------------------------------------------
+    # Step 2: Verify joint count
+    # ---------------------------------------------------------------
+    actual_count = len(revolute_joints)
+    if actual_count != EXPECTED_NUM_JOINTS:
+        logger.error(
+            "CRITICAL: Joint count mismatch — expected %d, got %d",
+            EXPECTED_NUM_JOINTS,
+            actual_count,
+        )
+        return False
+
+    logger.info("Joint count OK: %d revolute joints", actual_count)
+
+    # ---------------------------------------------------------------
+    # Step 3: Verify joint names
+    # ---------------------------------------------------------------
+    actual_names = [prim.GetName() for prim in revolute_joints]
+    logger.info("Joint names found: %s", actual_names)
+
+    name_mismatches = []
+    for expected_name in EXPECTED_JOINT_NAMES:
+        matched = any(expected_name in name for name in actual_names)
+        if not matched:
+            name_mismatches.append(expected_name)
+            logger.warning(
+                "Expected joint name '%s' not found in: %s",
+                expected_name,
+                actual_names,
+            )
+
+    if name_mismatches:
+        logger.warning(
+            "Joint name mismatches: %d of %d names differ",
+            len(name_mismatches),
+            len(EXPECTED_JOINT_NAMES),
+        )
+    else:
+        logger.info("Joint names OK: all expected names matched")
+
+    # ---------------------------------------------------------------
+    # Step 4: Validate joint limits against control.yaml
+    # ---------------------------------------------------------------
+    position_min = get_param_value(control_params, "joint_limits", "position_min")
+    position_max = get_param_value(control_params, "joint_limits", "position_max")
+
+    logger.info("Validating joint limits against control.yaml...")
+    logger.debug("  Expected position_min (rad): %s", position_min)
+    logger.debug("  Expected position_max (rad): %s", position_max)
+
+    limit_warnings = 0
+    for i, prim in enumerate(revolute_joints):
+        joint = UsdPhysics.RevoluteJoint(prim)
+        lower_attr = joint.GetLowerLimitAttr()
+        upper_attr = joint.GetUpperLimitAttr()
+
+        if lower_attr and upper_attr:
+            # USD revolute joint limits are in degrees; convert to radians
+            lower_deg = lower_attr.Get()
+            upper_deg = upper_attr.Get()
+
+            if lower_deg is not None and upper_deg is not None:
+                lower_rad = math.radians(lower_deg)
+                upper_rad = math.radians(upper_deg)
+
+                expected_lower = (
+                    position_min[i] if i < len(position_min) else None
+                )
+                expected_upper = (
+                    position_max[i] if i < len(position_max) else None
+                )
+
+                # Tolerance for floating-point comparison (~3 degrees)
+                tol = 0.05
+                lower_ok = (
+                    expected_lower is not None
+                    and abs(lower_rad - expected_lower) < tol
+                )
+                upper_ok = (
+                    expected_upper is not None
+                    and abs(upper_rad - expected_upper) < tol
+                )
+
+                if not lower_ok or not upper_ok:
+                    limit_warnings += 1
+                    logger.warning(
+                        "  Joint '%s' limits mismatch: "
+                        "USD [%.3f, %.3f] rad vs "
+                        "control.yaml [%.3f, %.3f] rad",
+                        prim.GetName(),
+                        lower_rad,
+                        upper_rad,
+                        expected_lower if expected_lower is not None else float("nan"),
+                        expected_upper if expected_upper is not None else float("nan"),
+                    )
+                else:
+                    logger.debug(
+                        "  Joint '%s' limits OK: [%.3f, %.3f] rad",
+                        prim.GetName(),
+                        lower_rad,
+                        upper_rad,
+                    )
+            else:
+                logger.warning(
+                    "  Joint '%s': limit attributes exist but have no value",
+                    prim.GetName(),
+                )
+                limit_warnings += 1
+        else:
+            logger.warning(
+                "  Joint '%s': missing limit attributes",
+                prim.GetName(),
+            )
+            limit_warnings += 1
+
+    if limit_warnings > 0:
+        logger.warning(
+            "Joint limit validation: %d of %d joints have limit mismatches",
+            limit_warnings,
+            actual_count,
+        )
+    else:
+        logger.info("Joint limits OK: all limits match control.yaml")
+
+    logger.info("=== Articulation Verification Complete ===")
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 def main():
@@ -663,7 +834,20 @@ def main():
 
         logger.info("URDF → USD conversion completed successfully")
 
-        # --- Phase 3: Verification & stability test will be added here ---
+        # ---------------------------------------------------------------
+        # Phase 3: Verification & Stability Testing
+        # ---------------------------------------------------------------
+        if not args.skip_verify:
+            logger.info("Starting post-conversion verification...")
+            verification_ok = verify_articulation(prim_path, control_params)
+            if not verification_ok:
+                logger.error("Articulation verification FAILED")
+                sys.exit(1)
+            logger.info("Articulation verification PASSED")
+        else:
+            logger.info("Skipping verification (--skip-verify)")
+
+        # --- Phase 3b: Stability test will be added here ---
 
     except Exception as exc:
         logger.error("Fatal error: %s", exc, exc_info=True)
