@@ -5,6 +5,24 @@
 
 ---
 
+## [0.2.0] - 2026-03-01
+
+### Phase 5 — 데이터 파이프라인
+
+#### Added
+- `scripts/collect_data.py` — Isaac Sim teleop 데이터 수집 → LeRobot v2 포맷 저장
+- `scripts/validate_dataset.py` — LeRobot v2 데이터셋 검증 및 시뮬 리플레이
+- `params/data_pipeline.yaml` — 데이터 파이프라인 파라미터 (fps, 카메라 해상도, 에피소드 설정)
+- `datasets/README.md` — LeRobot v2 데이터셋 포맷 문서화
+
+#### Changed
+- `.gitignore` — LeRobot v2 데이터셋 아티팩트 (parquet, video) 제외 규칙 추가
+- `docs/references.md` — LeRobot v2 Dataset Format 문서 및 API 레퍼런스 추가
+- `scripts/README.md` — Phase 5 스크립트 목록 추가
+- `params/README.md` — `data_pipeline.yaml` 항목 추가
+
+---
+
 ## [0.1.0] - 2026-02-28
 
 ### Phase 0 — Repo Skeleton

@@ -9,6 +9,8 @@
 | `download_assets.sh` | LeIsaac USD/씬 자산 다운로드 | Phase 1 | 스텁 |
 | `sanity_checks.py` | 조인트/리밋/스케일 검증 | Phase 2 | 스텁 |
 | `import_urdf_to_isaac.py` | URDF→USD 변환 자동화 | Phase 4 | 스텁 |
+| `collect_data.py` | Isaac Sim teleop 데이터 수집 → LeRobot v2 저장 | Phase 5 | 구현 |
+| `validate_dataset.py` | LeRobot v2 데이터셋 검증 및 리플레이 | Phase 5 | 구현 |
 
 ## 사용 방법
 
@@ -21,6 +23,15 @@ python scripts/sanity_checks.py --usd assets/usd/so101_follower.usd
 
 # URDF→USD 변환 (Isaac Sim 환경 필요)
 python scripts/import_urdf_to_isaac.py --input robot_description/urdf/so_arm101.urdf --output assets/usd/
+
+# 데이터 수집 (Isaac Sim + LeRobot 환경 필요)
+python scripts/collect_data.py --task LeIsaac-SO101-PickOrange-v0 --num_episodes 1
+
+# 데이터셋 검증
+python scripts/validate_dataset.py --repo_id local/so101_teleop
+
+# 데이터셋 검증 + 시뮬 리플레이
+python scripts/validate_dataset.py --repo_id local/so101_teleop --replay --task_name LeIsaac-SO101-PickOrange-v0
 ```
 
 ## 규칙

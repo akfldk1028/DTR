@@ -26,6 +26,8 @@
 |------|-----|------|------|
 | LeRobot 메인 | https://github.com/huggingface/lerobot | main | 데이터/실물 파이프라인 |
 | SO-101 문서 | https://huggingface.co/docs/lerobot/en/so101 | - | SO-101 HW 문서 |
+| LeRobot v2 Dataset Format | https://huggingface.co/docs/lerobot/en/dataset_format | v2 | 데이터셋 포맷 공식 문서 |
+| LeRobotDataset API | https://github.com/huggingface/lerobot/blob/main/lerobot/common/datasets/lerobot_dataset.py | main | 데이터셋 API 레퍼런스 |
 
 ## LeIsaac
 
