@@ -1,0 +1,322 @@
+{
+  "feature": "Verify 005-phase3-ssot: SSOT params + robot_description Phase 3 changes",
+  "workflow_type": "simple",
+  "workflow_rationale": "Verification task for a pure file-editing implementation (YAML updates + markdown docs). No services to run, no build step. Sequential verification commands validate data correctness, schema compliance, cross-file consistency, and acceptance criteria.",
+  "taskType": "verify",
+  "priority": 1,
+  "status": "in_progress",
+  "planStatus": "planned",
+  "xstateState": "coding",
+  "dependsOn": [
+    "005-phase3-ssot"
+  ],
+  "parentTask": "005-phase3-ssot",
+  "created_at": "2026-03-01T14:55:00+09:00",
+  "updated_at": "2026-03-01T14:55:00+09:00",
+  "phases": [
+    {
+      "id": "phase-1-yaml-validation",
+      "name": "YAML File Validation",
+      "type": "implementation",
+      "description": "Checkout 005 branch files and validate YAML parsing, schema compliance, and exact parameter values for physics.yaml and control.yaml",
+      "depends_on": [],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Validate params/physics.yaml: (1) YAML parses without errors, (2) total_mass.value == 0.632, (3) per_link_masses section exists with all 7 links (base, shoulder, upper_arm, lower_arm, wrist, gripper, jaw), (4) per-link mass sum == 0.632, (5) each per_link_masses entry has value and unit fields, (6) existing simulation/friction/contact/damping sections are preserved unchanged, (7) header comment updated from Phase 0 to Phase 3",
+          "service": "params",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "params/physics.yaml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:params/physics.yaml > /tmp/verify_physics.yaml && python3 -c \"\nimport yaml, sys\nd = yaml.safe_load(open('/tmp/verify_physics.yaml'))\nerrs = []\n# 1. total_mass\nif d['mass']['total_mass']['value'] != 0.632:\n    errs.append(f'total_mass={d[\"mass\"][\"total_mass\"][\"value\"]}, expected 0.632')\n# 2. per_link_masses exists\nif 'per_link_masses' not in d['mass']:\n    errs.append('missing per_link_masses section')\nelse:\n    plm = d['mass']['per_link_masses']\n    expected = {'base': 0.147, 'shoulder': 0.100, 'upper_arm': 0.103, 'lower_arm': 0.104, 'wrist': 0.079, 'gripper': 0.087, 'jaw': 0.012}\n    for link, mass in expected.items():\n        if link not in plm:\n            errs.append(f'missing link: {link}')\n        elif plm[link]['value'] != mass:\n            errs.append(f'{link} mass={plm[link][\"value\"]}, expected {mass}')\n        elif 'unit' not in plm[link]:\n            errs.append(f'{link} missing unit field')\n    # 3. sum check\n    s = round(sum(v['value'] for v in plm.values()), 3)\n    if s != 0.632:\n        errs.append(f'per_link sum={s}, expected 0.632')\n# 4. preserved sections\nfor sec in ['simulation', 'friction', 'damping', 'contact']:\n    if sec not in d:\n        errs.append(f'missing preserved section: {sec}')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: physics.yaml validated')\n\"",
+            "expected": "OK: physics.yaml validated"
+          },
+          "status": "completed",
+          "notes": "All 7 verification checks PASSED against auto-claude/005-phase3-ssot branch: (1) YAML parses OK, (2) total_mass=0.632, (3) per_link_masses has 7 links, (4) mass sum=0.632, (5) value+unit fields present, (6) simulation/friction/contact/damping preserved, (7) header updated to Phase 3",
+          "updated_at": "2026-03-01T06:01:53.827148+00:00"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Validate params/control.yaml: (1) YAML parses without errors, (2) joint_names has 6 entries matching expected names, (3) decimation == 10, (4) drive.stiffness == 40.0, drive.damping == 4.0, drive.max_effort == 5.0, (5) joint_limits.position_min/max have 6 entries with correct radians, (6) per_joint_overrides is uncommented and has all 6 joints with correct values, (7) control_frequency == 20.0, (8) header comment updated to Phase 3",
+          "service": "params",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "params/control.yaml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:params/control.yaml > /tmp/verify_control.yaml && python3 -c \"\nimport yaml, sys\nd = yaml.safe_load(open('/tmp/verify_control.yaml'))\nerrs = []\n# 1. joint_names\nexpected_names = ['shoulder_pan', 'shoulder_lift', 'elbow_flex', 'wrist_flex', 'wrist_roll', 'gripper']\nif 'joint_names' not in d:\n    errs.append('missing joint_names')\nelif d['joint_names']['value'] != expected_names:\n    errs.append(f'joint_names={d[\"joint_names\"][\"value\"]}')\n# 2. decimation\nif d['decimation']['value'] != 10:\n    errs.append(f'decimation={d[\"decimation\"][\"value\"]}, expected 10')\n# 3. drive gains\nif d['drive']['stiffness']['value'] != 40.0:\n    errs.append(f'stiffness={d[\"drive\"][\"stiffness\"][\"value\"]}')\nif d['drive']['damping']['value'] != 4.0:\n    errs.append(f'damping={d[\"drive\"][\"damping\"][\"value\"]}')\nif d['drive']['max_effort']['value'] != 5.0:\n    errs.append(f'max_effort={d[\"drive\"][\"max_effort\"][\"value\"]}')\n# 4. joint_limits\nexp_min = [-1.9199, -1.7453, -1.5708, -1.6581, -2.7925, 0.1745]\nexp_max = [1.9199, 1.7453, 1.5708, 1.6581, 2.7925, 1.7453]\nactual_min = d['joint_limits']['position_min']['value']\nactual_max = d['joint_limits']['position_max']['value']\nif len(actual_min) != 6:\n    errs.append(f'position_min has {len(actual_min)} entries')\nelif actual_min != exp_min:\n    errs.append(f'position_min mismatch: {actual_min}')\nif len(actual_max) != 6:\n    errs.append(f'position_max has {len(actual_max)} entries')\nelif actual_max != exp_max:\n    errs.append(f'position_max mismatch: {actual_max}')\n# 5. per_joint_overrides\nif 'per_joint_overrides' not in d:\n    errs.append('per_joint_overrides missing (still commented?)')\nelse:\n    pjo = d['per_joint_overrides']\n    for jn in expected_names:\n        if jn not in pjo:\n            errs.append(f'per_joint_overrides missing joint: {jn}')\n        else:\n            if pjo[jn].get('stiffness') != 40.0:\n                errs.append(f'{jn} override stiffness != 40.0')\n            if pjo[jn].get('damping') != 4.0:\n                errs.append(f'{jn} override damping != 4.0')\n# 6. control_frequency\nif d['control_frequency']['value'] != 20.0:\n    errs.append(f'control_frequency={d[\"control_frequency\"][\"value\"]}')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: control.yaml validated')\n\"",
+            "expected": "OK: control.yaml validated"
+          },
+          "status": "completed",
+          "notes": "All 8 verification checks PASSED against auto-claude/005-phase3-ssot branch: (1) YAML parses OK, (2) joint_names has 6 entries [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper], (3) decimation=10, (4) drive stiffness=40.0, damping=4.0, max_effort=5.0, (5) position_min/max have correct 6-entry radian values, (6) per_joint_overrides uncommented with all 6 joints at stiffness=40.0/damping=4.0, (7) control_frequency=20.0, (8) header updated to Phase 3",
+          "updated_at": "2026-03-01T06:03:30.453823+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-cross-validation",
+      "name": "Cross-File Consistency Checks",
+      "type": "implementation",
+      "description": "Verify consistency between physics.yaml, control.yaml, and robot_description/README.md values",
+      "depends_on": [
+        "phase-1-yaml-validation"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Cross-validate: (1) per_link_masses sum in physics.yaml matches total_mass, (2) joint_names count in control.yaml matches joint_limits array lengths, (3) decimation value (10) is consistent with sim_timestep (0.005s) and control_frequency (20Hz): 1/(0.005*20) = 10, (4) robot_description/README.md mass table matches physics.yaml per_link_masses, (5) robot_description/README.md joint table matches control.yaml joint_limits",
+          "service": "params",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:params/physics.yaml > /tmp/verify_physics.yaml && git show auto-claude/005-phase3-ssot:params/control.yaml > /tmp/verify_control.yaml && python3 -c \"\nimport yaml, sys\nphy = yaml.safe_load(open('/tmp/verify_physics.yaml'))\nctl = yaml.safe_load(open('/tmp/verify_control.yaml'))\nerrs = []\n# 1. mass sum == total_mass\nplm = phy['mass']['per_link_masses']\nmass_sum = round(sum(v['value'] for v in plm.values()), 3)\ntotal = phy['mass']['total_mass']['value']\nif mass_sum != total:\n    errs.append(f'mass sum {mass_sum} != total_mass {total}')\n# 2. joint count consistency\nn_names = len(ctl['joint_names']['value'])\nn_min = len(ctl['joint_limits']['position_min']['value'])\nn_max = len(ctl['joint_limits']['position_max']['value'])\nn_vel = len(ctl['joint_limits']['velocity_max']['value'])\nif not (n_names == n_min == n_max == n_vel == 6):\n    errs.append(f'joint count mismatch: names={n_names}, min={n_min}, max={n_max}, vel={n_vel}')\n# 3. decimation consistency\ndt = phy['simulation']['timestep']['value']\nfreq = ctl['control_frequency']['value']\nexpected_dec = int(1.0 / (dt * freq))\nactual_dec = ctl['decimation']['value']\nif actual_dec != expected_dec:\n    errs.append(f'decimation={actual_dec}, expected 1/({dt}*{freq})={expected_dec}')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: Cross-validation passed')\n\"",
+            "expected": "OK: Cross-validation passed"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-documentation-check",
+      "name": "Documentation Verification",
+      "type": "implementation",
+      "description": "Verify all documentation updates: robot_description/README.md, params/README.md, docs/phase-checklist.md",
+      "depends_on": [
+        "phase-1-yaml-validation"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Verify robot_description/README.md: (1) contains URDF source info (SO-ARM100, TheRobotStudio, onshape-to-robot), (2) contains joint summary table with 6 joints, (3) contains link/mass summary table with 7 links, (4) lists 8 STL mesh files, (5) references params/control.yaml and params/physics.yaml for detailed values",
+          "service": "robot_description",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "robot_description/README.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:robot_description/README.md > /tmp/verify_rdesc.md && python3 -c \"\nimport sys\ncontent = open('/tmp/verify_rdesc.md').read()\nerrs = []\n# 1. URDF source\nfor kw in ['SO-ARM100', 'onshape-to-robot', 'TheRobotStudio']:\n    if kw not in content:\n        errs.append(f'missing source reference: {kw}')\n# 2. Joint names in table\nfor jn in ['shoulder_pan', 'shoulder_lift', 'elbow_flex', 'wrist_flex', 'wrist_roll', 'gripper']:\n    if jn not in content:\n        errs.append(f'missing joint in table: {jn}')\n# 3. Link masses in table\nfor link in ['base', 'shoulder', 'upper_arm', 'lower_arm', 'wrist', 'gripper', 'jaw']:\n    if link not in content:\n        errs.append(f'missing link in mass table: {link}')\n# 4. STL files listed\nstl_count = content.count('.stl')\nif stl_count < 8:\n    errs.append(f'only {stl_count} STL file references, expected >= 8')\n# 5. Cross-references\nfor ref in ['params/control.yaml', 'params/physics.yaml']:\n    if ref not in content:\n        errs.append(f'missing cross-reference to {ref}')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: robot_description/README.md validated')\n\"",
+            "expected": "OK: robot_description/README.md validated"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Verify docs/phase-checklist.md: All 6 Phase 3 checkboxes are marked as [x] (completed). Verify that earlier phases (0) remain correctly marked, and later phases (4-7) remain unchecked.",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "docs/phase-checklist.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:docs/phase-checklist.md > /tmp/verify_checklist.md && python3 -c \"\nimport re, sys\ncontent = open('/tmp/verify_checklist.md').read()\nerrs = []\n# Find Phase 3 section\nphase3_match = re.search(r'## Phase 3.*?(?=## Phase 4|$)', content, re.DOTALL)\nif not phase3_match:\n    errs.append('Phase 3 section not found')\nelse:\n    p3 = phase3_match.group()\n    checked = len(re.findall(r'- \\[x\\]', p3))\n    unchecked = len(re.findall(r'- \\[ \\]', p3))\n    if checked < 6:\n        errs.append(f'Phase 3: only {checked} checked items, expected 6')\n    if unchecked > 0:\n        errs.append(f'Phase 3: {unchecked} items still unchecked')\n# Verify Phase 0 still checked\nphase0_match = re.search(r'## Phase 0.*?(?=## Phase 1|$)', content, re.DOTALL)\nif phase0_match:\n    p0 = phase0_match.group()\n    p0_unchecked = len(re.findall(r'- \\[ \\]', p0))\n    if p0_unchecked > 0:\n        errs.append(f'Phase 0: {p0_unchecked} items became unchecked')\n# Verify Phase 4+ still unchecked (not accidentally checked)\nfor phase_num in [4, 5, 6, 7]:\n    pat = rf'## Phase {phase_num}.*?(?=## Phase {phase_num+1}|$)'\n    m = re.search(pat, content, re.DOTALL)\n    if m:\n        checked_count = len(re.findall(r'- \\[x\\]', m.group()))\n        if checked_count > 0:\n            errs.append(f'Phase {phase_num}: {checked_count} items incorrectly checked')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: phase-checklist.md validated')\n\"",
+            "expected": "OK: phase-checklist.md validated"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-3",
+          "description": "Verify params/README.md: Updated from Phase 0 placeholder language to Phase 3 actual values language. Should reference Phase 2 verification (sanity_checks.py, min_controller.py).",
+          "service": "params",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "params/README.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:params/README.md > /tmp/verify_params_readme.md && python3 -c \"\nimport sys\ncontent = open('/tmp/verify_params_readme.md').read()\nerrs = []\n# Should NOT contain 'placeholder' language\nif 'placeholder' in content.lower():\n    errs.append('still contains placeholder language')\n# Should reference Phase 3 or actual values\nif 'Phase 3' not in content and '실측' not in content and '실제' not in content:\n    errs.append('no reference to Phase 3 or actual/measured values')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: params/README.md validated')\n\"",
+            "expected": "OK: params/README.md validated"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-schema-compliance",
+      "name": "YAML Schema Compliance",
+      "type": "implementation",
+      "description": "Verify that all YAML parameters follow the project schema convention (value, unit, range, description fields) and use snake_case keys",
+      "depends_on": [
+        "phase-1-yaml-validation"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Verify YAML schema compliance for physics.yaml: Every top-level parameter should have value, unit, and description fields. Check that per_link_masses entries have at minimum value and unit. Verify all keys are snake_case.",
+          "service": "params",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "params/physics.yaml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:params/physics.yaml > /tmp/verify_physics.yaml && python3 -c \"\nimport yaml, re, sys\nd = yaml.safe_load(open('/tmp/verify_physics.yaml'))\nerrs = []\ndef check_snake_case(key, path):\n    if not re.match(r'^[a-z][a-z0-9_]*$', key):\n        errs.append(f'non-snake_case key: {path}.{key}')\ndef check_param(param, path):\n    if isinstance(param, dict):\n        if 'value' in param:\n            # This is a leaf parameter\n            if 'unit' not in param:\n                errs.append(f'{path}: missing unit')\n            if 'description' not in param:\n                errs.append(f'{path}: missing description')\n        else:\n            for k, v in param.items():\n                check_snake_case(k, path)\n                check_param(v, f'{path}.{k}')\n\nfor section_name, section_val in d.items():\n    check_snake_case(section_name, '')\n    if isinstance(section_val, dict):\n        for k, v in section_val.items():\n            check_snake_case(k, section_name)\n            check_param(v, f'{section_name}.{k}')\nif errs:\n    print('FAIL: ' + '; '.join(errs[:5]))\n    sys.exit(1)\nprint('OK: physics.yaml schema compliant')\n\"",
+            "expected": "OK: physics.yaml schema compliant"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Verify YAML schema compliance for control.yaml: Every parameter should have value, unit, and description fields (except per_joint_overrides which has a different structure). Verify all keys are snake_case.",
+          "service": "params",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "params/control.yaml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:params/control.yaml > /tmp/verify_control.yaml && python3 -c \"\nimport yaml, re, sys\nd = yaml.safe_load(open('/tmp/verify_control.yaml'))\nerrs = []\ndef check_snake_case(key, path):\n    if not re.match(r'^[a-z][a-z0-9_]*$', key):\n        errs.append(f'non-snake_case key: {path}.{key}')\n# Check top-level standard params have value/unit/description\nstandard_params = ['control_frequency', 'decimation', 'action_delay', 'observation_delay', 'action_scale']\nfor param_name in standard_params:\n    check_snake_case(param_name, '')\n    if param_name not in d:\n        errs.append(f'missing param: {param_name}')\n    else:\n        p = d[param_name]\n        for field in ['value', 'unit', 'description']:\n            if field not in p:\n                errs.append(f'{param_name}: missing {field}')\n# Check drive sub-params\nif 'drive' in d:\n    for dp in ['stiffness', 'damping', 'max_effort']:\n        if dp in d['drive']:\n            for field in ['value', 'unit', 'description']:\n                if field not in d['drive'][dp]:\n                    errs.append(f'drive.{dp}: missing {field}')\n# Check joint_names has unit field\nif 'joint_names' in d:\n    jn = d['joint_names']\n    for field in ['value', 'unit', 'description']:\n        if field not in jn:\n            errs.append(f'joint_names: missing {field}')\n# Check per_joint_overrides keys are snake_case\nif 'per_joint_overrides' in d:\n    for jname in d['per_joint_overrides']:\n        check_snake_case(jname, 'per_joint_overrides')\nif errs:\n    print('FAIL: ' + '; '.join(errs[:5]))\n    sys.exit(1)\nprint('OK: control.yaml schema compliant')\n\"",
+            "expected": "OK: control.yaml schema compliant"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-5-acceptance-signoff",
+      "name": "Acceptance Criteria Sign-off",
+      "type": "integration",
+      "description": "Final check of all acceptance criteria from the original spec. This is the overall pass/fail gate.",
+      "depends_on": [
+        "phase-2-cross-validation",
+        "phase-3-documentation-check",
+        "phase-4-schema-compliance"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-5-1",
+          "description": "Run all acceptance criteria checks in a single comprehensive script: (1) physics.yaml measured values, (2) control.yaml calibrated values, (3) all parameters have unit/range docs, (4) robot_description/README.md has URDF source, (5) 8 STL mesh files documented, (6) phase-checklist Phase 3 complete. Output a summary report.",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "git show auto-claude/005-phase3-ssot:params/physics.yaml > /tmp/v_phy.yaml && git show auto-claude/005-phase3-ssot:params/control.yaml > /tmp/v_ctl.yaml && git show auto-claude/005-phase3-ssot:robot_description/README.md > /tmp/v_rdesc.md && git show auto-claude/005-phase3-ssot:docs/phase-checklist.md > /tmp/v_checklist.md && python3 -c \"\nimport yaml, re, sys\nphy = yaml.safe_load(open('/tmp/v_phy.yaml'))\nctl = yaml.safe_load(open('/tmp/v_ctl.yaml'))\nrdesc = open('/tmp/v_rdesc.md').read()\nchecklist = open('/tmp/v_checklist.md').read()\n\nresults = []\ndef check(name, condition):\n    results.append((name, condition))\n\n# AC1: physics.yaml measured values\ncheck('AC1-total_mass', phy['mass']['total_mass']['value'] == 0.632)\ncheck('AC1-per_link_masses', 'per_link_masses' in phy['mass'] and len(phy['mass']['per_link_masses']) == 7)\ncheck('AC1-mass_sum', round(sum(v['value'] for v in phy['mass']['per_link_masses'].values()), 3) == 0.632)\n\n# AC2: control.yaml calibrated values\ncheck('AC2-joint_limits_min', ctl['joint_limits']['position_min']['value'] == [-1.9199, -1.7453, -1.5708, -1.6581, -2.7925, 0.1745])\ncheck('AC2-joint_limits_max', ctl['joint_limits']['position_max']['value'] == [1.9199, 1.7453, 1.5708, 1.6581, 2.7925, 1.7453])\ncheck('AC2-drive_Kp', ctl['drive']['stiffness']['value'] == 40.0)\ncheck('AC2-drive_Kd', ctl['drive']['damping']['value'] == 4.0)\ncheck('AC2-joint_names', len(ctl['joint_names']['value']) == 6)\n\n# AC3: unit/range documentation\ncheck('AC3-physics_units', all('unit' in phy['mass']['per_link_masses'][l] for l in phy['mass']['per_link_masses']))\ncheck('AC3-control_units', all('unit' in ctl[p] for p in ['control_frequency', 'decimation', 'action_scale']))\n\n# AC4: URDF source in robot_description/README.md\ncheck('AC4-urdf_source', 'SO-ARM100' in rdesc and 'onshape-to-robot' in rdesc)\n\n# AC5: 8 mesh files documented\ncheck('AC5-mesh_files', rdesc.count('.stl') >= 8)\n\n# AC6: phase-checklist Phase 3 complete\np3 = re.search(r'## Phase 3.*?(?=## Phase 4|$)', checklist, re.DOTALL)\nif p3:\n    check('AC6-phase3_checked', len(re.findall(r'- \\[x\\]', p3.group())) >= 6 and len(re.findall(r'- \\[ \\]', p3.group())) == 0)\nelse:\n    check('AC6-phase3_found', False)\n\nprint('=== ACCEPTANCE CRITERIA REPORT ===')\nall_pass = True\nfor name, passed in results:\n    status = 'PASS' if passed else 'FAIL'\n    if not passed:\n        all_pass = False\n    print(f'  [{status}] {name}')\nprint('=================================')\nif all_pass:\n    print('OK: All acceptance criteria passed')\nelse:\n    print('FAIL: Some acceptance criteria failed')\n    sys.exit(1)\n\"",
+            "expected": "OK: All acceptance criteria passed"
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 5,
+    "total_subtasks": 8,
+    "services_involved": [
+      "params",
+      "robot_description",
+      "docs"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 2,
+      "parallel_groups": [
+        {
+          "phases": [
+            "phase-3-documentation-check",
+            "phase-4-schema-compliance"
+          ],
+          "reason": "Both depend only on phase-1, different verification targets (docs vs schema)"
+        }
+      ],
+      "recommended_workers": 1,
+      "speedup_estimate": "Sequential is optimal — all verifications are fast Python commands, parallel overhead not justified"
+    },
+    "startup_command": "source auto-claude/.venv/bin/activate && python auto-claude/run.py --spec verify-005 --parallel 1"
+  },
+  "verification_strategy": {
+    "risk_level": "low",
+    "skip_validation": false,
+    "test_creation_phase": "not_applicable",
+    "test_types_required": [
+      "unit"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "params/physics.yaml에 실제 측정값 반영 (total_mass=0.632kg, per-link masses)",
+      "params/control.yaml에 교정된 조인트 리밋(radians), 검증된 드라이브 게인(Kp=40, Kd=4), 조인트 이름 리스트",
+      "모든 파라미터에 단위/범위 문서화 완료",
+      "robot_description/README.md에 URDF 출처(SO-ARM100 repo, onshape-to-robot) 문서화",
+      "URDF 내 참조 메쉬 8개 전부 meshes/에 존재 확인 (documented — actual files require Phase 1 download)",
+      "docs/phase-checklist.md Phase 3 체크박스 완료"
+    ],
+    "verification_steps": [
+      {
+        "name": "YAML Parse Validation",
+        "command": "git show auto-claude/005-phase3-ssot:params/physics.yaml > /tmp/v.yaml && python3 -c \"import yaml; yaml.safe_load(open('/tmp/v.yaml')); print('OK')\" && git show auto-claude/005-phase3-ssot:params/control.yaml > /tmp/v.yaml && python3 -c \"import yaml; yaml.safe_load(open('/tmp/v.yaml')); print('OK')\"",
+        "expected_outcome": "Both YAML files parse without errors",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Physics Values Check",
+        "command": "python3 -c \"import yaml; d=yaml.safe_load(open('/tmp/v_phy.yaml')); assert d['mass']['total_mass']['value']==0.632; print('OK')\"",
+        "expected_outcome": "total_mass==0.632, per-link sum==0.632",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Control Values Check",
+        "command": "python3 -c \"import yaml; d=yaml.safe_load(open('/tmp/v_ctl.yaml')); assert d['decimation']['value']==10; assert len(d['joint_names']['value'])==6; print('OK')\"",
+        "expected_outcome": "decimation==10, 6 joint names, Kp==40",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "Low risk — verifying pure YAML value updates and markdown documentation. All expected values are known a priori from Phase 2 verification data. No runtime code, no service dependencies."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": true,
+      "commands": [
+        "python3 -c \"import yaml; yaml.safe_load(open('/tmp/v_phy.yaml')); yaml.safe_load(open('/tmp/v_ctl.yaml')); print('YAML parse OK')\"",
+        "python3 -c \"import yaml; d=yaml.safe_load(open('/tmp/v_phy.yaml')); plm=d['mass']['per_link_masses']; s=round(sum(v['value'] for v in plm.values()),3); assert s==0.632, f'mass sum={s}'; print('Mass check OK')\"",
+        "python3 -c \"import yaml; d=yaml.safe_load(open('/tmp/v_ctl.yaml')); assert d['decimation']['value']==10; assert len(d['joint_names']['value'])==6; print('Control check OK')\""
+      ],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": false,
+      "commands": [],
+      "services_to_test": []
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": []
+    },
+    "database_verification": {
+      "required": false,
+      "checks": []
+    }
+  },
+  "qa_signoff": null,
+  "last_updated": "2026-03-01T06:03:30.453841+00:00"
+}
