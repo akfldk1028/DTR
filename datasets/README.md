@@ -117,6 +117,84 @@ SO-ARM101 데이터셋은 다음 3가지 feature로 구성된다:
 
 ---
 
+## VLA 학습을 위한 task instruction 필드
+
+VLA(Vision-Language-Action) 모델은 **자연어 지시문(instruction)**을 입력으로 받아
+로봇 액션을 생성하는 정책이다. 데이터셋의 `task` 필드는 이 지시문을 에피소드와 연결하는
+핵심 메타데이터이다.
+
+> 상세 VLA 추론/평가 가이드: `training/vla/README.md` 참조
+
+### task 필드 저장 흐름
+
+1. **수집 시**: `dataset.save_episode(task="pick orange from table")` 호출
+2. **tasks.jsonl 기록**: 고유한 태스크 문자열에 `task_index`가 부여되고 `meta/tasks.jsonl`에 저장
+3. **episodes.jsonl 연결**: 각 에피소드는 `task_index`로 해당 태스크를 참조
+
+```
+save_episode(task="pick orange from table")
+  → meta/tasks.jsonl:    {"task_index": 0, "task": "pick orange from table"}
+  → meta/episodes.jsonl: {"episode_index": 0, "length": 150, "task_index": 0}
+```
+
+같은 태스크 문자열로 여러 에피소드를 저장하면 동일한 `task_index`를 공유한다.
+다른 태스크 문자열을 사용하면 새로운 `task_index`가 생성된다:
+
+```jsonl
+# meta/tasks.jsonl — 태스크 목록
+{"task_index": 0, "task": "pick orange from table"}
+{"task_index": 1, "task": "place orange in bowl"}
+
+# meta/episodes.jsonl — 에피소드별 태스크 연결
+{"episode_index": 0, "length": 150, "task_index": 0}
+{"episode_index": 1, "length": 200, "task_index": 0}
+{"episode_index": 2, "length": 180, "task_index": 1}
+```
+
+### VLA 모델에서의 활용
+
+VLA 모델은 학습 시 `task` 필드를 자연어 지시문으로 사용하여 조건부 정책을 학습한다:
+
+```
+학습 입력:  task (str) + observation.images.camera (480×640×3) + observation.state (6,)
+학습 출력:  action (6,) — 6-DOF 관절 위치 타겟 [rad]
+```
+
+| 단계 | 역할 | task 필드 사용 |
+|------|------|---------------|
+| 데이터 수집 | `save_episode(task="...")` | 에피소드에 지시문 기록 |
+| VLA 학습 | LeRobot DataLoader | `task` 텍스트를 언어 토큰으로 인코딩 |
+| VLA 추론 | `model.predict(instruction, ...)` | 동일한 지시문을 입력으로 전달 |
+| 시뮬 평가 | `eval_in_sim.py` | `--instruction` 인자로 지시문 지정 |
+
+### task 설명 작성 가이드
+
+- **자연어로 간결하게** 작성한다: `"pick orange from table"`, `"place cup on shelf"`
+- **영어로** 작성한다 (VLA 사전학습 모델이 영어 기반)
+- **행동 + 대상 + 위치** 형식을 권장한다: `"pick [object] from [location]"`
+- 같은 동작을 수집하는 에피소드는 **동일한 task 문자열**을 사용한다
+
+### 코드 예시
+
+```python
+# 데이터 수집 시 task 지정
+dataset.save_episode(task="pick orange from table")
+
+# CLI에서 task 지정
+# python scripts/collect_data.py --task_description "pick orange from table"
+
+# VLA 추론 시 동일한 task를 instruction으로 전달
+from training.vla.inference import DummyVLA
+model = DummyVLA()
+action = model.predict(
+    instruction="pick orange from table",  # ← task 필드와 동일
+    image=image,
+    state=state,
+)
+```
+
+---
+
 ## 데이터 수집 (collect_data.py)
 
 `scripts/collect_data.py`를 사용하여 Isaac Sim 텔레오퍼레이션에서 데이터를 수집한다.
@@ -310,4 +388,7 @@ image = frame["observation.images.camera"]  # torch.Tensor
 | `scripts/validate_dataset.py` | 데이터셋 구조 검증 및 리플레이 |
 | `params/data_pipeline.yaml` | 데이터 파이프라인 파라미터 (fps, shape, 경로 등) |
 | `params/control.yaml` | 로봇 제어 파라미터 (조인트 범위 등) |
+| `training/vla/README.md` | VLA 추론/평가 가이드 (inference I/O 계약, 모델 옵션) |
+| `training/vla/inference.py` | VLA 추론 인터페이스 (VLAInference, DummyVLA 등) |
+| `params/vla_eval.yaml` | VLA 평가 파라미터 |
 | `docs/references.md` | 외부 링크 (LeRobot, LeIsaac 문서 등) |
