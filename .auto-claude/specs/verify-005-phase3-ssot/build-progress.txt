@@ -76,3 +76,62 @@ Timestamp: 2026-03-01
 7. [PASS] header comment updated from Phase 0 to Phase 3
 
 Branch verified: auto-claude/005-phase3-ssot
+
+## subtask-1-2: Validate params/control.yaml
+Status: COMPLETED (previous session)
+
+## subtask-2-1: Cross-file consistency checks
+Status: COMPLETED (previous session)
+
+## subtask-3-1: Verify robot_description/README.md
+Status: COMPLETED (previous session)
+
+## subtask-3-2: Verify docs/phase-checklist.md
+Status: COMPLETED (previous session)
+
+## subtask-3-3: Verify params/README.md
+Status: COMPLETED (previous session)
+
+## subtask-4-1: Verify physics.yaml schema compliance
+Status: COMPLETED (previous session)
+
+## subtask-4-2: Verify control.yaml schema compliance
+Status: COMPLETED (previous session)
+
+## subtask-5-1: Final Acceptance Criteria Sign-off
+Status: COMPLETED
+Timestamp: 2026-03-01
+
+### Comprehensive Acceptance Criteria Report (all 13 checks PASSED):
+
+AC1 - physics.yaml measured values:
+  [PASS] AC1-total_mass — total_mass.value == 0.632
+  [PASS] AC1-per_link_masses — 7 links present in per_link_masses
+  [PASS] AC1-mass_sum — sum of per-link masses == 0.632
+
+AC2 - control.yaml calibrated values:
+  [PASS] AC2-joint_limits_min — 6 correct radian values [-1.9199, -1.7453, -1.5708, -1.6581, -2.7925, 0.1745]
+  [PASS] AC2-joint_limits_max — 6 correct radian values [1.9199, 1.7453, 1.5708, 1.6581, 2.7925, 1.7453]
+  [PASS] AC2-drive_Kp — stiffness == 40.0
+  [PASS] AC2-drive_Kd — damping == 4.0
+  [PASS] AC2-joint_names — 6 joint names present
+
+AC3 - unit/range documentation:
+  [PASS] AC3-physics_units — all per_link_masses entries have unit field
+  [PASS] AC3-control_units — control_frequency, decimation, action_scale all have unit field
+
+AC4 - URDF source documentation:
+  [PASS] AC4-urdf_source — SO-ARM100 and onshape-to-robot referenced in robot_description/README.md
+
+AC5 - Mesh file documentation:
+  [PASS] AC5-mesh_files — >= 8 .stl file references in robot_description/README.md
+
+AC6 - Phase checklist:
+  [PASS] AC6-phase3_checked — >= 6 checked items, 0 unchecked items in Phase 3 section
+
+Result: OK — All acceptance criteria passed
+Branch verified: auto-claude/005-phase3-ssot
+
+=== ALL VERIFICATION SUBTASKS COMPLETE ===
+Total: 8/8 subtasks passed
+All 6 acceptance criteria from the original spec are satisfied.
