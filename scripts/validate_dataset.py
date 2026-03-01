@@ -73,10 +73,7 @@ def _load_yaml(path: Path) -> dict:
 
 
 def _get_value(param):
-    """Extract the 'value' field from a parameter dict.
-
-    Handles both top-level {value: ...} and plain values.
-    """
+    """Extract the 'value' field from a parameter dict."""
     if isinstance(param, dict) and "value" in param:
         return param["value"]
     return param
@@ -534,6 +531,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=str(_DATA_PIPELINE_YAML),
         help="데이터 파이프라인 파라미터 파일 경로",
+    )
+    parser.add_argument(
+        "--headless",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Headless 모드 실행 (기본값: True, --no-headless로 GUI 활성화)",
     )
     return parser.parse_args()
 

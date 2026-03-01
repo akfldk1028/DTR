@@ -70,11 +70,8 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(fh)
 
 
-def _get_value(param: dict):
-    """Extract the 'value' field from a parameter dict.
-
-    Handles both top-level {value: ...} and nested structures.
-    """
+def _get_value(param):
+    """Extract the 'value' field from a parameter dict."""
     if isinstance(param, dict) and "value" in param:
         return param["value"]
     return param
@@ -381,6 +378,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=str(_CONTROL_YAML),
         help="제어 파라미터 파일 경로",
+    )
+    parser.add_argument(
+        "--headless",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Headless 모드 실행 (기본값: True, --no-headless로 GUI 활성화)",
     )
     return parser.parse_args()
 

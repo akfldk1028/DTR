@@ -51,9 +51,9 @@ def parse_args():
     )
     parser.add_argument(
         "--headless",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Headless 모드 (기본: True)",
+        help="Headless 모드 (기본: True, --no-headless로 GUI 활성화)",
     )
     parser.add_argument(
         "--screenshot-dir",

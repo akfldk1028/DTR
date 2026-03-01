@@ -30,9 +30,14 @@ Phase: 7
 """
 
 import logging
+import os
 from abc import ABC, abstractmethod
 
 import numpy as np
+
+# Portable path resolution
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 
 # LeRobot SmolVLA import is guarded so the module can be
 # imported and used (e.g. DummyVLA) without this heavy dependency.

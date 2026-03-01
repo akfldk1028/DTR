@@ -580,6 +580,12 @@ def parse_args() -> argparse.Namespace:
         default=str(_VLA_EVAL_YAML),
         help="VLA 평가 파라미터 파일 경로",
     )
+    parser.add_argument(
+        "--headless",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Headless 모드 실행 (기본값: True, --no-headless로 GUI 활성화)",
+    )
     return parser.parse_args()
 
 

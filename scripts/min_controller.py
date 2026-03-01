@@ -47,8 +47,8 @@ def parse_args():
         help="USD file path (default: assets/usd/so101_follower.usd)",
     )
     parser.add_argument(
-        "--headless", action="store_true", default=True,
-        help="Headless mode (default: True)",
+        "--headless", action=argparse.BooleanOptionalAction, default=True,
+        help="Headless mode (default: True, --no-headless for GUI)",
     )
     parser.add_argument(
         "--screenshot-dir", type=str, default=None,

@@ -88,11 +88,11 @@ soarm_stack/
 - [x] **Phase 0** — Repo Skeleton (뼈대)
 - [x] **Phase 1** — 자산 확보 (USD 다운로드, SHA256 검증 완료)
 - [x] **Phase 2** — 최소 구동 (6 joints OK, 0.632kg, controller 0.00° error)
-- [ ] Phase 3 — SSOT 정착 (URDF/Xacro + params 표준화)
-- [ ] Phase 4 — URDF→USD 자동화
-- [ ] Phase 5 — 데이터 파이프라인 (LeRobot)
-- [ ] Phase 6 — 학습 루프 (IL/RL)
-- [ ] Phase 7 — VLA 확장
+- [x] **Phase 3** — SSOT 정착 (URDF/Xacro + params 실제값, 단위/범위 문서화)
+- [x] **Phase 4** — URDF→USD 자동화 (import_urdf_to_isaac.py, 1129줄, 정적검증 PASS)
+- [x] **Phase 5** — 데이터 파이프라인 (collect_data.py + validate_dataset.py, LeRobot v2)
+- [x] **Phase 6** — 학습 루프 (ACT IL + PPO RL + 통합 평가)
+- [x] **Phase 7** — VLA 확장 (DummyVLA + SmolVLA wrapper, dry-run 검증 PASS)
 
 ### Isaac Sim 5.1.0 API 주의사항
 - `set_joint_position_targets()` 대신 `apply_action(ArticulationAction(joint_positions=...))` 사용

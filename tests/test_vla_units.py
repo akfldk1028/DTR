@@ -291,22 +291,22 @@ def test_dummyvla_accepts_all_spec_inputs():
 # ===========================================================================
 
 def test_vlainference_predict_raises_not_implemented():
-    """VLAInference.predict() raises NotImplementedError."""
+    """VLAInference.predict() raises NotImplementedError or TypeError (abstract)."""
     modules = _import_vla()
     VLAInference = modules["VLAInference"]
 
-    model = VLAInference()
     image = _make_test_image()
     state = _make_test_state()
 
     try:
+        model = VLAInference()
         model.predict(SPEC_INSTRUCTION, image, state)
         raise AssertionError(
             "VLAInference.predict() should raise NotImplementedError "
             "but returned without error"
         )
-    except NotImplementedError:
-        pass  # expected
+    except (NotImplementedError, TypeError):
+        pass  # expected — TypeError if ABC with @abstractmethod
 
 
 def test_vlainference_is_base_class():
