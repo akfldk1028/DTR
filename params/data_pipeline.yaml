@@ -1,0 +1,142 @@
+# data_pipeline.yaml — SO-ARM101 데이터 파이프라인 파라미터 스키마
+#
+# 이 파일은 데이터 수집 및 LeRobot v2 변환에 사용되는 파라미터를 정의한다.
+# Phase 5: 데이터 파이프라인 설정
+#
+# 스키마 규칙:
+#   value     — 현재 값 (placeholder일 수 있음)
+#   unit      — SI 단위
+#   range     — 유효 범위 [min, max]
+#   description — 파라미터 설명
+
+# --- 수집 주기 ---
+fps:
+  value: 30
+  unit: "Hz"
+  range: [10, 60]
+  description: "데이터 수집 프레임 레이트 (LeRobot dataset fps)"
+
+# --- 카메라 설정 ---
+camera:
+  width:
+    value: 640
+    unit: "px"
+    range: [320, 1920]
+    description: "카메라 이미지 가로 해상도"
+
+  height:
+    value: 480
+    unit: "px"
+    range: [240, 1080]
+    description: "카메라 이미지 세로 해상도"
+
+  channels:
+    value: 3
+    unit: "channels"
+    range: [1, 4]
+    description: "카메라 이미지 채널 수 (RGB=3)"
+
+  camera_name:
+    value: "camera"
+    unit: "string"
+    description: "Isaac Sim 카메라 센서 이름"
+
+# --- 조인트 설정 ---
+joint_names:
+  value: ["shoulder_pan", "shoulder_lift", "elbow_flex",
+          "wrist_flex", "wrist_roll", "gripper"]
+  unit: "string[]"
+  description: "SO-ARM101 조인트 이름 목록 (6 DOF: 5 회전 + 1 그리퍼)"
+
+num_joints:
+  value: 6
+  unit: "count"
+  range: [6, 6]
+  description: "로봇 자유도 (DOF) 수"
+
+# --- 에피소드 설정 ---
+episode:
+  min_steps:
+    value: 30
+    unit: "frames"
+    range: [10, 10000]
+    description: "에피소드 최소 프레임 수"
+
+  max_steps:
+    value: 1000
+    unit: "frames"
+    range: [30, 100000]
+    description: "에피소드 최대 프레임 수"
+
+  num_episodes:
+    value: 1
+    unit: "count"
+    range: [1, 10000]
+    description: "수집할 에피소드 수"
+
+# --- 데이터셋 경로 ---
+dataset:
+  output_dir:
+    value: "datasets"
+    unit: "path"
+    description: "데이터셋 출력 루트 디렉토리"
+
+  repo_id:
+    value: "local/so101_teleop"
+    unit: "string"
+    description: "LeRobot 데이터셋 리포지토리 ID"
+
+  task_name:
+    value: "pick orange from table"
+    unit: "string"
+    description: "에피소드 태스크 설명 (Phase 7 VLA 학습용)"
+
+# --- LeRobot v2 Feature 스키마 ---
+features:
+  observation_state:
+    dtype:
+      value: "float32"
+      unit: "dtype"
+      description: "관측 상태 데이터 타입"
+    shape:
+      value: [6]
+      unit: "dimensions"
+      description: "관측 상태 차원 (6 DOF 조인트 위치)"
+
+  observation_images:
+    dtype:
+      value: "video"
+      unit: "dtype"
+      description: "카메라 이미지 데이터 타입 (비디오 인코딩)"
+    shape:
+      value: [480, 640, 3]
+      unit: "dimensions"
+      description: "카메라 이미지 shape [height, width, channels]"
+
+  action:
+    dtype:
+      value: "float32"
+      unit: "dtype"
+      description: "액션 데이터 타입"
+    shape:
+      value: [6]
+      unit: "dimensions"
+      description: "액션 차원 (6 DOF 목표 조인트 위치)"
+
+# --- Isaac Sim 환경 설정 ---
+isaac_sim:
+  task:
+    value: "LeIsaac-SO101-PickOrange-v0"
+    unit: "string"
+    description: "Isaac Sim 환경 태스크 이름"
+
+  num_envs:
+    value: 1
+    unit: "count"
+    range: [1, 16]
+    description: "병렬 환경 수"
+
+  use_lerobot_recorder:
+    value: true
+    unit: "boolean"
+    description: "LeRobot 레코더 직접 사용 여부"
