@@ -5,7 +5,26 @@
 
 ---
 
-## [0.2.0] - 2026-03-01
+## [0.6.0] - 2026-03-01
+
+### Phase 6 — 학습 루프: ACT IL baseline + Isaac Lab RL task
+
+#### Added
+- `training/il/config.yaml` — ACT 학습 하이퍼파라미터 설정 (chunk_size=100, dim_model=512, AdamW lr=1e-5)
+- `training/il/train_act.py` — LeRobot ACT training wrapper (Phase 5 데이터셋 연동)
+- `training/rl/config.yaml` — RL 학습 설정 (PPO, 1024 envs, domain randomization)
+- `training/rl/so101_env.py` — Isaac Lab ArticulationCfg + SO-ARM101 Reach task 환경
+- `training/rl/train_rl.py` — skrl PPO training wrapper (SharedActorCritic MLP [256,128,64])
+- `training/eval/__init__.py` — 평가 모듈 패키지 초기화
+- `training/eval/evaluate_policy.py` — IL/RL 통합 정책 평가 스크립트 (success_rate, trajectory_error 등)
+- `training/__init__.py`, `training/il/__init__.py`, `training/rl/__init__.py` — 패키지 초기화 파일
+
+#### Changed
+- `training/README.md` — Phase 6 구현 상태 및 파일 목록 반영
+
+---
+
+## [0.5.0] - 2026-03-01
 
 ### Phase 5 — 데이터 파이프라인
 

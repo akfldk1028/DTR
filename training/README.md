@@ -28,4 +28,24 @@ training/
 
 ## 현재 상태
 
-Phase 0: 폴더 구조만 생성됨. Phase 6에서 IL/RL 코드 구현 시작.
+Phase 6: IL/RL 학습 코드 및 평가 스크립트 구현 완료.
+
+### Phase 6 구현 파일
+
+#### Imitation Learning (training/il/)
+- `config.yaml` — ACT 학습 하이퍼파라미터 설정 (chunk_size=100, dim_model=512, n_heads=8)
+- `train_act.py` — LeRobot ACT training wrapper (argparse CLI, config 검증, params/control.yaml 연동)
+
+#### Reinforcement Learning (training/rl/)
+- `config.yaml` — RL 학습 설정 (PPO, 1024 envs, domain randomization)
+- `so101_env.py` — Isaac Lab ArticulationCfg + Reach task 환경 (SO-ARM101 6 DOF)
+- `train_rl.py` — skrl PPO training wrapper (SharedActorCritic MLP [256,128,64])
+
+#### 평가 (training/eval/)
+- `evaluate_policy.py` — IL/RL 통합 정책 평가 (success_rate, trajectory_error, episode_reward)
+
+### 주요 설정값
+- 관절: shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper (6 DOF)
+- 구동 게인: stiffness=40.0, damping=4.0 (params/control.yaml 참조)
+- Domain randomization: 질량 ±20%, 마찰 ±30%, actuator 게인 ±15%
+- 시뮬레이션: sim_dt=0.005s, decimation=4 (params/physics.yaml 참조)
