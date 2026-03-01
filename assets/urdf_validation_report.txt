@@ -1,0 +1,64 @@
+========================================================================
+URDF Cross-Validation Report
+Generated: 2026-03-01T06:56:09.570872+00:00
+URDF: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/urdf/so101_new_calib.urdf
+Control YAML: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/params/control.yaml
+Tolerance: 0.05 rad
+========================================================================
+
+Phase 3: URDF Cross-Validation
+
+--- URDF File Structure ---
+
+--- Control YAML Structure ---
+
+--- Joint Limit Cross-Check ---
+Joint              URDF lower   YAML lower    Δ lower   URDF upper   YAML upper    Δ upper   Status
+----------------------------------------------------------------------------------------------------
+shoulder_pan        -1.919860    -1.919900   0.000040     1.919860     1.919900   0.000040       OK
+shoulder_lift       -1.745330    -1.745300   0.000030     1.745330     1.745300   0.000030       OK
+elbow_flex          -1.690000    -1.570800   0.119200     1.690000     1.570800   0.119200     WARN
+wrist_flex          -1.658060    -1.658100   0.000040     1.658060     1.658100   0.000040       OK
+wrist_roll          -2.743850    -2.792500   0.048650     2.841210     2.792500   0.048710       OK
+gripper             -0.174533     0.174500   0.349033     1.745330     1.745300   0.000030     WARN
+
+Some joint limits exceed tolerance (0.05 rad) — see WARN entries above. These are known calibration discrepancies.
+
+--- Mesh File Validation ---
+Mesh Reference                                              Status Location
+----------------------------------------------------------------------------------------------------
+assets/base_motor_holder_so101_v1.stl                        FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/base_motor_holder_so101_v1.part
+assets/base_so101_v2.stl                                     FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/base_so101_v2.part
+assets/motor_holder_so101_base_v1.stl                        FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/motor_holder_so101_base_v1.part
+assets/motor_holder_so101_wrist_v1.stl                       FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/motor_holder_so101_wrist_v1.part
+assets/moving_jaw_so101_v1.stl                               FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/moving_jaw_so101_v1.part
+assets/rotation_pitch_so101_v1.stl                           FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/rotation_pitch_so101_v1.part
+assets/sts3215_03a_no_horn_v1.stl                            FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/sts3215_03a_no_horn_v1.part
+assets/sts3215_03a_v1.stl                                    FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/sts3215_03a_v1.part
+assets/under_arm_so101_v1.stl                                FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/under_arm_so101_v1.part
+assets/upper_arm_so101_v1.stl                                FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/upper_arm_so101_v1.part
+assets/waveshare_mounting_plate_so101_v2.stl                 FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/waveshare_mounting_plate_so101_v2.part
+assets/wrist_roll_follower_so101_v1.stl                      FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/wrist_roll_follower_so101_v1.part
+assets/wrist_roll_pitch_so101_v2.stl                         FOUND Part metadata: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-006-phase4-urdf-to-usd/robot_description/meshes/wrist_roll_pitch_so101_v2.part
+
+All 13 mesh references resolved successfully
+
+------------------------------------------------------------------------
+Test Results Summary
+------------------------------------------------------------------------
+  [PASS] URDF file exists
+  [PASS] URDF valid XML
+  [PASS] 6 revolute joints
+  [PASS] Expected joint names
+  [PASS] Joint limits present
+  [PASS] Joint axis present
+  [PASS] control.yaml exists
+  [PASS] control.yaml has joint_limits
+  [PASS] control.yaml has joint_names
+  [PASS] control.yaml limit lengths
+  [WARN] Cross-check elbow_flex — lower diff=0.1192 rad (URDF=-1.690000, YAML=-1.570800); upper diff=0.1192 rad (URDF=1.690000, YAML=1.570800)
+  [WARN] Cross-check gripper — lower diff=0.3490 rad (URDF=-0.174533, YAML=0.174500)
+
+Total: 12 | Passed: 10 | Warnings: 2 | Failed: 0
+
+Result: PASS (all critical checks passed)

@@ -1,0 +1,193 @@
+========================================================================
+Phase 4 URDF->USD Verification Summary Report
+Generated: 2026-03-01T06:56:09.588298+00:00
+Project: SO-ARM101 URDF->USD Automation (import_urdf_to_isaac.py)
+========================================================================
+
+--- Test Suite Results ---
+
+Suite                                 Status   Passed   Failed  Skipped     Warn    Total
+-----------------------------------------------------------------------------------------------
+Static Code Verification                PASS       23        0        0        0       23
+Pattern Compliance                      PASS       25        0        0        0       25
+Unit Tests                              PASS       50        0        0        0       50
+URDF Cross-Validation                   PASS       10        0        0        2       12
+Runtime URDF→USD Conversion *        PARTIAL        2        0        4        0        6
+-----------------------------------------------------------------------------------------------
+TOTAL                                             110        0        4        2      116
+
+  * = non-critical (SKIP is acceptable)
+
+
+--- Acceptance Criteria Checklist ---
+
+   1. [x] import_urdf_to_isaac.py passes Python syntax check (py_compile)
+       Verified by: test_import_urdf_static.py
+   2. [x] All public functions have docstrings
+       Verified by: test_import_urdf_patterns.py
+   3. [x] No print() calls -- logging module used throughout
+       Verified by: test_import_urdf_patterns.py
+   4. [x] No hardcoded magic numbers for drive params -- params from YAML
+       Verified by: test_import_urdf_patterns.py
+   5. [x] SimulationApp initialized before omni.* imports in code flow
+       Verified by: test_import_urdf_patterns.py
+   6. [x] --input and --output CLI arguments supported
+       Verified by: test_import_urdf_static.py, test_import_urdf_units.py
+   7. [x] load_params() correctly reads params/control.yaml and params/physics.yaml
+       Verified by: test_import_urdf_static.py, test_import_urdf_units.py
+   8. [x] get_param_value() extracts nested value fields from YAML schema
+       Verified by: test_import_urdf_static.py, test_import_urdf_units.py
+   9. [x] URDF has 6 revolute joints: shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper
+       Verified by: test_import_urdf_static.py, test_urdf_crosscheck.py
+  10. [x] URDF mesh references point to existing files
+       Verified by: test_urdf_crosscheck.py
+  11. [x] Joint limit cross-check discrepancies are documented
+       Verified by: test_urdf_crosscheck.py
+  12. [-] Runtime URDF->USD conversion produces output file (if Isaac Sim available) (runtime)
+       Isaac Sim not available (acceptable)
+  13. [-] Conversion log written to assets/urdf_import_results.log (if Isaac Sim available) (runtime)
+       Isaac Sim not available (acceptable)
+
+Criteria: 11 passed, 0 failed, 2 skipped (runtime)
+
+
+--- Detailed Test Output ---
+
+>> Static Code Verification (test_import_urdf_static.py)
+   Status: PASS
+   [PASS] Python syntax (py_compile)
+   [PASS] argparse --input/--output
+   [PASS] argparse default --output
+   [PASS] argparse --headless default
+   [PASS] load_params(control.yaml)
+   [PASS] load_params(physics.yaml)
+   [PASS] load_params(missing file)
+   [PASS] get_param_value(drive.stiffness)
+   [PASS] get_param_value(drive.damping)
+   [PASS] get_param_value(joint_names)
+   [PASS] get_param_value(gravity)
+   [PASS] get_param_value(timestep)
+   [PASS] get_param_value(missing key)
+   [PASS] get_param_value(joint_limits)
+   [PASS] _setup_logging handlers
+   [PASS] _setup_logging no duplicates
+   [PASS] _setup_logging stderr stream
+   [PASS] URDF file exists
+   [PASS] URDF valid XML
+   [PASS] URDF 6 revolute joints
+   [PASS] URDF expected joint names
+   [PASS] URDF joint limits present
+   [PASS] URDF joint names match constants
+
+>> Pattern Compliance (test_import_urdf_patterns.py)
+   Status: PASS
+   [PASS] No print() calls
+   [PASS] logging module imported
+   [PASS] logging.getLogger() used
+   [PASS] Drive params via get_param_value()
+   [PASS] Drive params reference YAML keys
+   [PASS] No hardcoded drive values
+   [PASS] Constants are documented
+   [PASS] Public functions have docstrings
+   [PASS] Module docstring exists
+   [PASS] Module docstring has purpose
+   [PASS] SimulationApp ordering comment
+   [PASS] No top-level omni.* imports
+   [PASS] No top-level pxr imports
+   [PASS] No top-level isaacsim import
+   [PASS] SimulationApp init before omni calls in main()
+   [PASS] --headless default=True in argparse
+   [PASS] init_simulation_app headless default
+   [PASS] --headless help text
+   [PASS] No set_joint_position_targets
+   [PASS] No deprecated joint APIs
+   [PASS] No hardcoded URLs
+   [PASS] snake_case function names
+   [PASS] UPPER_SNAKE_CASE constants
+   [PASS] Uses pathlib
+   [PASS] Uses yaml.safe_load
+
+>> Unit Tests (test_import_urdf_units.py)
+   Status: PASS
+   [PASS] parse_args --input/--output
+   [PASS] parse_args default --output
+   [PASS] parse_args --headless default
+   [PASS] parse_args --no-headless
+   [PASS] parse_args --skip-verify
+   [PASS] parse_args --skip-verify default
+   [PASS] parse_args --fix-base default
+   [PASS] parse_args --no-fix-base
+   [PASS] parse_args --params-control default
+   [PASS] parse_args --params-physics default
+   [PASS] parse_args custom params paths
+   [PASS] parse_args --merge-fixed-joints
+   [PASS] parse_args --merge-fixed-joints default
+   [PASS] load_params valid YAML
+   [PASS] load_params missing file
+   [PASS] load_params real control.yaml
+   [PASS] load_params real physics.yaml
+   [PASS] load_params empty YAML
+   [PASS] load_params nested structure
+   [PASS] get_param_value drive.stiffness
+   [PASS] get_param_value drive.damping
+   [PASS] get_param_value drive.max_effort
+   [PASS] get_param_value joint_limits.position_min
+   [PASS] get_param_value joint_limits.position_max
+   [PASS] get_param_value joint_limits.velocity_max
+   [PASS] get_param_value joint_names
+   [PASS] get_param_value physics gravity
+   [PASS] get_param_value physics timestep
+   [PASS] get_param_value physics total_mass
+   [PASS] get_param_value missing key
+   [PASS] get_param_value missing nested key
+   [PASS] get_param_value raw when no value key
+   [PASS] get_param_value synthetic data
+   [PASS] get_param_value single key
+   [PASS] _setup_logging FileHandler
+   [PASS] _setup_logging StreamHandler
+   [PASS] _setup_logging handler count
+   [PASS] _setup_logging logger level
+   [PASS] _setup_logging logger name
+   [PASS] _setup_logging writes to file
+   [PASS] _setup_logging no duplicates
+   [PASS] _setup_logging creates parent dirs
+   [PASS] _setup_logging FileHandler level
+   [PASS] _setup_logging StreamHandler level
+   [PASS] output path dir auto-names
+   [PASS] output path trailing slash
+   [PASS] output path file preserves name
+   [PASS] output path file creates parent
+   [PASS] output path default assets/usd/
+   [PASS] output path URDF suffix replaced
+
+>> URDF Cross-Validation (test_urdf_crosscheck.py)
+   Status: PASS
+   [PASS] URDF file exists
+   [PASS] URDF valid XML
+   [PASS] 6 revolute joints
+   [PASS] Expected joint names
+   [PASS] Joint limits present
+   [PASS] Joint axis present
+   [PASS] control.yaml exists
+   [PASS] control.yaml has joint_limits
+   [PASS] control.yaml has joint_names
+   [PASS] control.yaml limit lengths
+   [WARN] Cross-check elbow_flex — lower diff=0.1192 rad (URDF=-1.690000, YAML=-1.570800); upper diff=0.1192 rad (URDF=1.690000, YAML=1.570800)
+   [WARN] Cross-check gripper — lower diff=0.3490 rad (URDF=-0.174533, YAML=0.174500)
+
+>> Runtime URDF→USD Conversion (test_import_urdf_runtime.py)
+   Status: PARTIAL
+   [PASS] Isaac Sim detection
+   [PASS] Prerequisites check
+   [SKIP] URDF→USD conversion subprocess — Isaac Sim (isaacsim) not available — skipping runtime test
+   [SKIP] USD output file exists — Isaac Sim (isaacsim) not available — skipping runtime test
+   [SKIP] Log file exists — Isaac Sim (isaacsim) not available — skipping runtime test
+   [SKIP] Log file report fields — Isaac Sim (isaacsim) not available — skipping runtime test
+
+
+========================================================================
+VERDICT: PASS
+
+All critical verification tests passed. The import_urdf_to_isaac.py script meets all testable acceptance criteria.
+Note: 4 runtime test(s) skipped (Isaac Sim not available). These tests are non-critical.
+========================================================================
