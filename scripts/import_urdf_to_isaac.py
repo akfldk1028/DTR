@@ -24,7 +24,7 @@
     - Isaac Lab 자산 Import 가이드: docs/references.md 참조
 
 Phase: 4
-상태: 구현 중
+상태: 완료
 """
 
 # ---------------------------------------------------------------------------
@@ -55,6 +55,7 @@ EXPECTED_JOINT_NAMES = [
 NUM_STABILITY_STEPS = 200
 STABILITY_CHECK_INTERVAL = 50
 JOINT_POSITION_BOUND = 100.0  # radians — exceeding indicates physics explosion
+JOINT_LIMIT_TOLERANCE = 0.05  # radians (~3 degrees) — tolerance for joint limit comparison
 LOG_FILE = "assets/urdf_import_results.log"
 DEFAULT_PARAMS_CONTROL = "params/control.yaml"
 DEFAULT_PARAMS_PHYSICS = "params/physics.yaml"
@@ -200,9 +201,9 @@ def parse_args():
     )
     parser.add_argument(
         "--fix-base",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="베이스 링크 고정 여부",
+        help="베이스 링크 고정 여부 (default: True)",
     )
     parser.add_argument(
         "--merge-fixed-joints",
@@ -212,7 +213,7 @@ def parse_args():
     )
     parser.add_argument(
         "--headless",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
         help="GUI 없이 headless 모드로 실행 (default: True)",
     )
@@ -287,6 +288,8 @@ def create_import_config(
     logger = logging.getLogger("urdf_to_usd")
 
     result, import_config = omni.kit.commands.execute("URDFCreateImportConfig")
+    if not result:
+        raise RuntimeError("Failed to create URDF ImportConfig")
 
     import_config.merge_fixed_joints = merge_fixed_joints
     import_config.convex_decomp = True
@@ -455,9 +458,8 @@ def apply_drive_params(prim_path: str, control_params: dict) -> int:
         if not str(prim.GetPath()).startswith(prim_path):
             continue
 
-        # Check if this prim is a joint (RevoluteJoint or PrismaticJoint)
-        joint = UsdPhysics.RevoluteJoint(prim)
-        if not joint:
+        # Check if this prim is a RevoluteJoint
+        if not prim.IsA(UsdPhysics.RevoluteJoint):
             continue
 
         # Check if the prim actually has the RevoluteJoint schema applied
@@ -533,6 +535,7 @@ def log_conversion_summary(
         joint_count: Number of joints with drives applied.
     """
     import omni.usd
+    from pxr import UsdPhysics
 
     logger = logging.getLogger("urdf_to_usd")
 
@@ -546,7 +549,7 @@ def log_conversion_summary(
                 continue
             # Links are typically Xform prims with rigid body API
             if prim.GetTypeName() in ("Xform", "Mesh") or prim.HasAPI(
-                __import__("pxr").UsdPhysics.RigidBodyAPI
+                UsdPhysics.RigidBodyAPI
             ):
                 link_count += 1
 
@@ -681,8 +684,7 @@ def verify_articulation(prim_path: str, control_params: dict) -> bool:
                     position_max[i] if i < len(position_max) else None
                 )
 
-                # Tolerance for floating-point comparison (~3 degrees)
-                tol = 0.05
+                tol = JOINT_LIMIT_TOLERANCE
                 lower_ok = (
                     expected_lower is not None
                     and abs(lower_rad - expected_lower) < tol
@@ -913,11 +915,7 @@ def write_final_report(
 
     report_text = "\n".join(report_lines)
 
-    # Write to log file via logger (goes to both file and stderr)
-    for line in report_lines:
-        logger.info(line)
-
-    # Also append raw text block to the log file for easy parsing
+    # Append structured report block to the log file for easy parsing
     log_path = Path(LOG_FILE)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "a", encoding="utf-8") as fh:
