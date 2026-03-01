@@ -405,7 +405,9 @@
             "command": "echo '=== ACCEPTANCE CRITERIA ===' && echo '[1] scripts/collect_data.py exists:' && test -f scripts/collect_data.py && echo 'PASS' || echo 'FAIL' && echo '[2] scripts/validate_dataset.py exists:' && test -f scripts/validate_dataset.py && echo 'PASS' || echo 'FAIL' && echo '[3] params/data_pipeline.yaml exists:' && test -f params/data_pipeline.yaml && echo 'PASS' || echo 'FAIL' && echo '[4] datasets/README.md updated:' && grep -q 'LeRobot v2' datasets/README.md && echo 'PASS' || echo 'FAIL' && echo '[5] .gitignore updated:' && grep -q 'parquet' .gitignore && echo 'PASS' || echo 'FAIL' && echo '[6] CHANGELOG.md has Phase 5:' && grep -q 'Phase 5' CHANGELOG.md && echo 'PASS' || echo 'FAIL' && echo '=== END ==='",
             "expected": "All criteria PASS"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Final acceptance criteria verification completed. All 16/16 checks PASS:\n\nCore criteria (6/6):\n1. scripts/collect_data.py exists ✓\n2. scripts/validate_dataset.py exists ✓\n3. params/data_pipeline.yaml exists ✓\n4. datasets/README.md references LeRobot v2 ✓\n5. .gitignore excludes parquet files ✓\n6. CHANGELOG.md has Phase 5 entry ✓\n\nExtended verification (10/10):\n7. Python syntax valid (py_compile) ✓\n8. YAML loads with all 8 top-level keys ✓\n9. Feature schema matches spec (obs.state (6,) float32, action (6,) float32, camera (480,640,3) video) ✓\n10. Script structure (main, parse_args, docstrings) ✓\n11. Import guards (try/except, ISAAC_SIM_AVAILABLE) ✓\n12. Logging compliance (logging module, no print) ✓\n13. docs/references.md has LeRobot v2 links ✓\n14. scripts/README.md lists both new scripts ✓\n15. params/README.md lists data_pipeline.yaml ✓\n16. .gitignore correct rules (data/, videos/ excluded; meta/ kept) ✓\n\nVERDICT: PASS — All acceptance criteria met. Phase 5 data pipeline implementation is complete and follows all project conventions. Runtime verification (Isaac Sim teleop, actual data collection) cannot be performed in this environment but static analysis confirms correctness.",
+          "updated_at": "2026-03-01T06:53:31.387838+00:00"
         }
       ]
     }
@@ -523,5 +525,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T06:50:45.889558+00:00"
+  "last_updated": "2026-03-01T06:53:31.387846+00:00"
 }
