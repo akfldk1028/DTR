@@ -86,13 +86,32 @@ soarm_stack/
 ## 현재 Phase 상태
 
 - [x] **Phase 0** — Repo Skeleton (뼈대)
-- [ ] Phase 1 — 자산 확보 (USD 우선) + 재현성 고정
-- [ ] Phase 2 — 최소 구동 (Sanity Control)
+- [x] **Phase 1** — 자산 확보 (USD 다운로드, SHA256 검증 완료)
+- [x] **Phase 2** — 최소 구동 (6 joints OK, 0.632kg, controller 0.00° error)
 - [ ] Phase 3 — SSOT 정착 (URDF/Xacro + params 표준화)
 - [ ] Phase 4 — URDF→USD 자동화
 - [ ] Phase 5 — 데이터 파이프라인 (LeRobot)
 - [ ] Phase 6 — 학습 루프 (IL/RL)
 - [ ] Phase 7 — VLA 확장
+
+### Isaac Sim 5.1.0 API 주의사항
+- `set_joint_position_targets()` 대신 `apply_action(ArticulationAction(joint_positions=...))` 사용
+- `print()` 대신 `logging` 모듈 사용 (Isaac Sim이 stdout 캡처함)
+- conda 활성화: `eval "$(conda shell.bash hook 2>/dev/null)" && conda activate soarm`
+
+### Headless-First 원칙 (CLI/AI 자동화 필수)
+
+> **모든 스크립트는 GUI 없이 CLI로 실행 가능해야 한다.** AI 에이전트가 24/7 자동 조정하므로 GUI 의존 금지.
+
+- **`--headless` 플래그**: 모든 Isaac Sim/Lab 스크립트에 `--headless` 지원 필수
+- **AppLauncher 패턴**: `AppLauncher(headless=True)` 또는 `SimulationApp({"headless": True})`
+- **카메라/영상 녹화**: `--enable_cameras` + `--headless`로 off-screen 렌더링
+- **파라미터 오버라이드**: Hydra CLI (`env.key=value`) 또는 `params/*.yaml`에서 읽기
+- **URDF→USD 변환**: `./isaaclab.sh -p scripts/tools/convert_urdf.py robot.urdf out.usd --headless`
+- **학습 실행**: `./isaaclab.sh -p train.py --task Task --headless --num_envs N`
+- **평가**: `./isaaclab.sh -p play.py --headless --video --enable_cameras`
+- **환경변수**: `HEADLESS=1`, `ENABLE_CAMERAS=1` (X11 DISPLAY 불필요)
+- **원격 모니터링**: `LIVESTREAM=2` (WebRTC) 또는 TensorBoard (`--logdir=logs`)
 
 ---
 
