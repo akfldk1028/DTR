@@ -25,4 +25,4 @@ parameter_name:
 
 - 스크립트에 매직넘버를 넣지 않는다. 항상 이 폴더의 YAML에서 읽는다.
 - 파라미터 변경 시 YAML을 먼저 수정하고, CHANGELOG.md에 기록한다.
-- Phase 0~2에서는 placeholder 값이다. Phase 3에서 실제값으로 채운다.
+- Phase 3에서 실제 측정값이 반영되었다. Phase 2의 `sanity_checks.py`와 `min_controller.py`로 검증된 값이다.

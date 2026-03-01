@@ -1,10 +1,10 @@
 # physics.yaml — SO-ARM101 물리 파라미터 스키마
 #
 # 이 파일은 시뮬레이션의 물리 파라미터를 정의한다.
-# Phase 0: placeholder 값 (실제값은 Phase 3에서 채운다)
+# Phase 3: 실측값 반영 (per-link 질량 추가, total_mass 업데이트)
 #
 # 스키마 규칙:
-#   value     — 현재 값 (placeholder일 수 있음)
+#   value     — 현재 값
 #   unit      — SI 단위
 #   range     — 유효 범위 [min, max]
 #   description — 파라미터 설명
@@ -65,10 +65,40 @@ damping:
 # --- 질량 (Mass) ---
 mass:
   total_mass:
-    value: 0.5
+    value: 0.632
     unit: "kg"
     range: [0.1, 2.0]
-    description: "로봇 전체 질량 (추정)"
+    description: "로봇 전체 질량 (실측)"
+
+  per_link_masses:
+    base:
+      value: 0.147
+      unit: "kg"
+      description: "베이스 링크 질량"
+    shoulder:
+      value: 0.100
+      unit: "kg"
+      description: "숄더 링크 질량"
+    upper_arm:
+      value: 0.103
+      unit: "kg"
+      description: "상완 링크 질량"
+    lower_arm:
+      value: 0.104
+      unit: "kg"
+      description: "하완 링크 질량"
+    wrist:
+      value: 0.079
+      unit: "kg"
+      description: "손목 링크 질량"
+    gripper:
+      value: 0.087
+      unit: "kg"
+      description: "그리퍼 링크 질량"
+    jaw:
+      value: 0.012
+      unit: "kg"
+      description: "조 링크 질량"
 
   mass_scale:
     value: 1.0

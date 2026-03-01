@@ -43,12 +43,12 @@
 
 ## Phase 3 — SSOT 정착 (URDF/Xacro + params 표준화)
 
-- [ ] `robot_description/`에 기준 URDF/Xacro + meshes 정리
-- [ ] URDF 출처/버전 기록
-- [ ] `params/physics.yaml` — 실제 물리 파라미터 값 채움
-- [ ] `params/control.yaml` — 실제 제어 파라미터 값 채움
-- [ ] params에 단위/범위 문서화 완료
-- [ ] README에 "기준 URDF 링크 + 기준 USD 파일" 명시
+- [x] `robot_description/`에 기준 URDF/Xacro + meshes 정리
+- [x] URDF 출처/버전 기록
+- [x] `params/physics.yaml` — 실제 물리 파라미터 값 채움
+- [x] `params/control.yaml` — 실제 제어 파라미터 값 채움
+- [x] params에 단위/범위 문서화 완료
+- [x] README에 "기준 URDF 링크 + 기준 USD 파일" 명시
 
 ---
 

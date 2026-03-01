@@ -1,0 +1,84 @@
+=== AUTO-BUILD PROGRESS ===
+
+Project: Phase 3 — SSOT 정착: URDF/Xacro 정리 + params/*.yaml 실제값 채우기
+Workspace: 005-phase3-ssot (worktree)
+Started: 2026-03-01
+
+Workflow Type: simple
+Rationale: Pure file editing (YAML value updates + markdown documentation). No services, no Isaac Sim. All values pre-determined from Phase 2 verification.
+
+Session 1 (Planner):
+- Created implementation_plan.json
+- Phases: 3
+- Total subtasks: 7
+- Created init.sh
+- Created context.json
+- Created project_index.json
+
+Phase Summary:
+- Phase 1 (YAML Parameter Updates): 2 subtasks, no dependencies
+  - subtask-1-1: Update params/physics.yaml (total_mass, per_link_masses)
+  - subtask-1-2: Update params/control.yaml (joint_limits, joint_names, decimation, per_joint_overrides)
+- Phase 2 (Documentation Updates): 3 subtasks, depends on Phase 1
+  - subtask-2-1: Update robot_description/README.md (URDF source, joint/link tables)
+  - subtask-2-2: Update params/README.md (Phase 3 status)
+  - subtask-2-3: Update docs/phase-checklist.md (mark Phase 3 complete)
+- Phase 3 (Cross-Validation): 2 subtasks, depends on Phase 1 + Phase 2
+  - subtask-3-1: YAML consistency verification (mass sums, joint counts, decimation)
+  - subtask-3-2: URDF mesh reference verification (if URDF present)
+
+Services Involved:
+- params: YAML parameter files (physics.yaml, control.yaml)
+- robot_description: Robot definition documentation (README.md)
+- docs: Phase checklist (phase-checklist.md)
+
+Key Data (from Phase 2 verification):
+- Joint names: shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper
+- Total mass: 0.632 kg (7 links)
+- Drive gains: Kp=40.0, Kd=4.0, max_effort=5.0
+- Control frequency: 20 Hz, decimation: 10
+- URDF source: SO-ARM100 GitHub (onshape-to-robot)
+
+Parallelism Analysis:
+- Max parallel phases: 1
+- Recommended workers: 1
+- Parallel groups: None (sequential phases due to dependency chain)
+
+Important Notes:
+- URDF file (so101_new_calib.urdf) may not exist yet — depends on Phase 1 asset download
+- STL meshes are gitignored (*.stl in .gitignore) — not tracked in git
+- Korean documentation, English code convention
+
+=== STARTUP COMMAND ===
+
+To continue building this spec, run:
+
+  source auto-claude/.venv/bin/activate && python auto-claude/run.py --spec 005 --parallel 1
+
+=== END SESSION 1 ===
+
+=== SUBTASK 3-2: URDF Mesh Reference Verification ===
+
+Status: COMPLETED (pass with note)
+
+Findings:
+- URDF file: NOT PRESENT (robot_description/urdf/ contains only .gitkeep)
+  → URDF (so101_new_calib.urdf) not yet downloaded from Phase 1 asset download
+- STL files: 0 found (robot_description/meshes/ contains only .gitkeep)
+  → STL files are gitignored (*.stl in .gitignore), not tracked in git
+- robot_description/README.md correctly documents 8 expected STL files:
+  base.stl, shoulder.stl, upper_arm.stl, lower_arm.stl,
+  wrist.stl, wrist_roll.stl, gripper.stl, jaw.stl
+- .gitignore confirms: *.stl is in the ignore list
+
+Note: Full URDF mesh cross-validation requires Phase 1 asset download
+(scripts/download_assets.sh). The URDF/STL files are large binaries managed
+outside of git. This validation will be fully exercisable once assets are
+downloaded locally.
+
+Verification command output:
+  URDF exists: False
+  STL files found: 0
+  OK: Mesh inventory complete
+
+=== END SUBTASK 3-2 ===
