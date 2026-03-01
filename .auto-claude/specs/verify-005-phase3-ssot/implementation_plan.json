@@ -130,7 +130,9 @@
             "command": "git show auto-claude/005-phase3-ssot:docs/phase-checklist.md > /tmp/verify_checklist.md && python3 -c \"\nimport re, sys\ncontent = open('/tmp/verify_checklist.md').read()\nerrs = []\n# Find Phase 3 section\nphase3_match = re.search(r'## Phase 3.*?(?=## Phase 4|$)', content, re.DOTALL)\nif not phase3_match:\n    errs.append('Phase 3 section not found')\nelse:\n    p3 = phase3_match.group()\n    checked = len(re.findall(r'- \\[x\\]', p3))\n    unchecked = len(re.findall(r'- \\[ \\]', p3))\n    if checked < 6:\n        errs.append(f'Phase 3: only {checked} checked items, expected 6')\n    if unchecked > 0:\n        errs.append(f'Phase 3: {unchecked} items still unchecked')\n# Verify Phase 0 still checked\nphase0_match = re.search(r'## Phase 0.*?(?=## Phase 1|$)', content, re.DOTALL)\nif phase0_match:\n    p0 = phase0_match.group()\n    p0_unchecked = len(re.findall(r'- \\[ \\]', p0))\n    if p0_unchecked > 0:\n        errs.append(f'Phase 0: {p0_unchecked} items became unchecked')\n# Verify Phase 4+ still unchecked (not accidentally checked)\nfor phase_num in [4, 5, 6, 7]:\n    pat = rf'## Phase {phase_num}.*?(?=## Phase {phase_num+1}|$)'\n    m = re.search(pat, content, re.DOTALL)\n    if m:\n        checked_count = len(re.findall(r'- \\[x\\]', m.group()))\n        if checked_count > 0:\n            errs.append(f'Phase {phase_num}: {checked_count} items incorrectly checked')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: phase-checklist.md validated')\n\"",
             "expected": "OK: phase-checklist.md validated"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "All 6 Phase 3 checkboxes marked as [x]. Phase 0 remains checked. Phases 1-2 and 4-7 remain unchecked. Verification script passed: OK: phase-checklist.md validated",
+          "updated_at": "2026-03-01T06:08:41.273929+00:00"
         },
         {
           "id": "subtask-3-3",
@@ -146,7 +148,9 @@
             "command": "git show auto-claude/005-phase3-ssot:params/README.md > /tmp/verify_params_readme.md && python3 -c \"\nimport sys\ncontent = open('/tmp/verify_params_readme.md').read()\nerrs = []\n# Should NOT contain 'placeholder' language\nif 'placeholder' in content.lower():\n    errs.append('still contains placeholder language')\n# Should reference Phase 3 or actual values\nif 'Phase 3' not in content and '실측' not in content and '실제' not in content:\n    errs.append('no reference to Phase 3 or actual/measured values')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: params/README.md validated')\n\"",
             "expected": "OK: params/README.md validated"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Fixed params/README.md: (1) Removed 'placeholder' language from YAML example comment (changed '현재 값 (placeholder일 수 있음)' to '현재 값 (Phase 3 실측값 반영 완료)'), (2) Updated SSOT section from Phase 0 placeholder language to Phase 3 actual values language, (3) Added Phase 2 verification references (sanity_checks.py, min_controller.py). Verification passes: no placeholder language found, Phase 3 and 실제/실측 references present.",
+          "updated_at": "2026-03-01T06:10:32.478760+00:00"
         }
       ]
     },
@@ -174,7 +178,9 @@
             "command": "git show auto-claude/005-phase3-ssot:params/physics.yaml > /tmp/verify_physics.yaml && python3 -c \"\nimport yaml, re, sys\nd = yaml.safe_load(open('/tmp/verify_physics.yaml'))\nerrs = []\ndef check_snake_case(key, path):\n    if not re.match(r'^[a-z][a-z0-9_]*$', key):\n        errs.append(f'non-snake_case key: {path}.{key}')\ndef check_param(param, path):\n    if isinstance(param, dict):\n        if 'value' in param:\n            # This is a leaf parameter\n            if 'unit' not in param:\n                errs.append(f'{path}: missing unit')\n            if 'description' not in param:\n                errs.append(f'{path}: missing description')\n        else:\n            for k, v in param.items():\n                check_snake_case(k, path)\n                check_param(v, f'{path}.{k}')\n\nfor section_name, section_val in d.items():\n    check_snake_case(section_name, '')\n    if isinstance(section_val, dict):\n        for k, v in section_val.items():\n            check_snake_case(k, section_name)\n            check_param(v, f'{section_name}.{k}')\nif errs:\n    print('FAIL: ' + '; '.join(errs[:5]))\n    sys.exit(1)\nprint('OK: physics.yaml schema compliant')\n\"",
             "expected": "OK: physics.yaml schema compliant"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "physics.yaml is fully schema compliant. All leaf parameters have value, unit, and description fields. All keys use snake_case. No modifications were needed. Verification script passes with: OK: physics.yaml schema compliant",
+          "updated_at": "2026-03-01T06:11:35.026854+00:00"
         },
         {
           "id": "subtask-4-2",
@@ -190,7 +196,9 @@
             "command": "git show auto-claude/005-phase3-ssot:params/control.yaml > /tmp/verify_control.yaml && python3 -c \"\nimport yaml, re, sys\nd = yaml.safe_load(open('/tmp/verify_control.yaml'))\nerrs = []\ndef check_snake_case(key, path):\n    if not re.match(r'^[a-z][a-z0-9_]*$', key):\n        errs.append(f'non-snake_case key: {path}.{key}')\n# Check top-level standard params have value/unit/description\nstandard_params = ['control_frequency', 'decimation', 'action_delay', 'observation_delay', 'action_scale']\nfor param_name in standard_params:\n    check_snake_case(param_name, '')\n    if param_name not in d:\n        errs.append(f'missing param: {param_name}')\n    else:\n        p = d[param_name]\n        for field in ['value', 'unit', 'description']:\n            if field not in p:\n                errs.append(f'{param_name}: missing {field}')\n# Check drive sub-params\nif 'drive' in d:\n    for dp in ['stiffness', 'damping', 'max_effort']:\n        if dp in d['drive']:\n            for field in ['value', 'unit', 'description']:\n                if field not in d['drive'][dp]:\n                    errs.append(f'drive.{dp}: missing {field}')\n# Check joint_names has unit field\nif 'joint_names' in d:\n    jn = d['joint_names']\n    for field in ['value', 'unit', 'description']:\n        if field not in jn:\n            errs.append(f'joint_names: missing {field}')\n# Check per_joint_overrides keys are snake_case\nif 'per_joint_overrides' in d:\n    for jname in d['per_joint_overrides']:\n        check_snake_case(jname, 'per_joint_overrides')\nif errs:\n    print('FAIL: ' + '; '.join(errs[:5]))\n    sys.exit(1)\nprint('OK: control.yaml schema compliant')\n\"",
             "expected": "OK: control.yaml schema compliant"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "control.yaml is fully schema compliant. All checks passed: (1) Standard params (control_frequency, decimation, action_delay, observation_delay, action_scale) have value/unit/description, (2) Drive sub-params (stiffness, damping, max_effort) have value/unit/description, (3) joint_names has value/unit/description, (4) joint_limits sub-params (position_min, position_max, velocity_max) have value/unit/description, (5) per_joint_overrides keys are snake_case (shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper), (6) All 9 top-level keys and all nested keys use snake_case. No modifications needed.",
+          "updated_at": "2026-03-01T06:12:38.479924+00:00"
         }
       ]
     },
@@ -322,5 +330,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T06:07:15.091900+00:00"
+  "last_updated": "2026-03-01T06:12:38.479940+00:00"
 }
