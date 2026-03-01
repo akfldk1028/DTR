@@ -209,7 +209,9 @@
             "command": "python -c \"code1=open('scripts/collect_data.py').read(); code2=open('scripts/validate_dataset.py').read(); assert 'try:' in code1 and 'ImportError' in code1, 'collect_data missing import guards'; assert 'try:' in code2 and 'ImportError' in code2, 'validate_dataset missing import guards'; assert 'ISAAC_SIM_AVAILABLE' in code1, 'collect_data missing ISAAC_SIM_AVAILABLE flag'; assert 'ISAAC_SIM_AVAILABLE' in code2, 'validate_dataset missing ISAAC_SIM_AVAILABLE flag'; print('Import guards OK')\"",
             "expected": "Import guards OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Verification passed. Both scripts/collect_data.py and scripts/validate_dataset.py have proper import guards for all three heavy dependencies:\n- numpy: try/except ImportError with np = None fallback\n- lerobot: try/except ImportError with LeRobotDataset = None fallback\n- isaaclab: try/except ImportError with ISAAC_SIM_AVAILABLE = False flag\n\ncollect_data.py has 3 guarded import blocks (numpy, lerobot, isaaclab) plus 1 additional try block in main() for error handling. validate_dataset.py has 3 guarded import blocks plus 2 additional try blocks for runtime error handling. All guards use the correct pattern: try/except ImportError with sensible fallback values. The ISAAC_SIM_AVAILABLE flag is present in both scripts and correctly set to True inside the isaaclab try block and False in the except block. No modifications needed — import guards were already compliant.",
+          "updated_at": "2026-03-01T06:40:23.702964+00:00"
         },
         {
           "id": "subtask-4-3",
@@ -223,7 +225,9 @@
             "command": "python -c \"code1=open('scripts/collect_data.py').read(); code2=open('scripts/validate_dataset.py').read(); assert 'import logging' in code1, 'collect_data missing logging import'; assert 'import logging' in code2, 'validate_dataset missing logging import'; assert 'logging.basicConfig' in code1, 'collect_data missing basicConfig'; assert 'logging.basicConfig' in code2, 'validate_dataset missing basicConfig'; assert 'logger = logging.getLogger' in code1; assert 'logger = logging.getLogger' in code2; print('Logging compliance OK')\"",
             "expected": "Logging compliance OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Logging compliance verified for both scripts. No modifications needed — implementation already compliant.\n\ncollect_data.py:\n- import logging ✓ (line 33)\n- logger = logging.getLogger(__name__) ✓ (line 59)\n- logging.basicConfig() in main() ✓ (line 390-393)\n- 22 logger.info/error calls, 0 print() statements ✓\n\nvalidate_dataset.py:\n- import logging ✓ (line 37)\n- logger = logging.getLogger(__name__) ✓ (line 62)\n- logging.basicConfig() in main() ✓ (line 543-546)\n- 17 logger.info/error calls, 0 print() statements ✓\n\nBoth scripts follow CLAUDE.md requirement to use logging module instead of print statements. logging.basicConfig is correctly called in main() with level=logging.INFO and proper format string including timestamp, level, and logger name.",
+          "updated_at": "2026-03-01T06:41:27.507457+00:00"
         },
         {
           "id": "subtask-4-4",
@@ -237,7 +241,9 @@
             "command": "python -c \"code1=open('scripts/collect_data.py').read(); code2=open('scripts/validate_dataset.py').read(); assert 'data_pipeline.yaml' in code1, 'collect_data does not reference data_pipeline.yaml'; assert 'data_pipeline.yaml' in code2, 'validate_dataset does not reference data_pipeline.yaml'; assert '_get_value' in code1, 'collect_data missing _get_value helper'; assert '_get_value' in code2, 'validate_dataset missing _get_value helper'; assert 'yaml.safe_load' in code1; assert 'yaml.safe_load' in code2; print('Parameter loading OK')\"",
             "expected": "Parameter loading OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Verification passed. Both scripts fully comply with YAML parameter loading requirements. No modifications needed — implementation was already compliant.\n\ncollect_data.py:\n- References data_pipeline.yaml: 8 times (module-level path, argparse default, docstring help text, logging)\n- _get_value() helper: defined (line 73-80) + 16 calls extracting values from YAML schema format\n- yaml.safe_load(): used in _load_yaml() helper (line 70)\n- _load_yaml() helper: defined (line 67-70), used to load both data_pipeline.yaml and control.yaml\n- No hardcoded magic numbers — all pipeline params (fps, resolution, joints, episodes, etc.) loaded from YAML\n\nvalidate_dataset.py:\n- References data_pipeline.yaml: 2 times (module-level path, argparse default)\n- _get_value() helper: defined (line 75-82) + 12 calls extracting values from YAML schema format\n- yaml.safe_load(): used in _load_yaml() helper (line 72)\n- _load_yaml() helper: defined (line 69-72), used to load data_pipeline.yaml\n- load_expected_features() builds feature schema entirely from YAML params using _get_value()\n- No hardcoded magic numbers — all validation parameters loaded from YAML\n\nBoth scripts follow the project pattern: params/*.yaml → _load_yaml() → _get_value() → use values. CLI arguments provide override capability with YAML as defaults.",
+          "updated_at": "2026-03-01T06:42:27.571802+00:00"
         }
       ]
     },
@@ -506,5 +512,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T06:38:49.844776+00:00"
+  "last_updated": "2026-03-01T06:42:27.571811+00:00"
 }
