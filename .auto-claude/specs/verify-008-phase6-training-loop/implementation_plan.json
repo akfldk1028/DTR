@@ -229,7 +229,9 @@
             "command": "python3 -c \"import yaml; il=yaml.safe_load(open('training/il/config.yaml')); rl=yaml.safe_load(open('training/rl/config.yaml')); assert 'policy' in il; assert 'training' in il; assert 'algorithm' in rl; assert 'environment' in rl; print('CONFIG VALIDATION OK')\"",
             "expected": "CONFIG VALIDATION OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Config cross-reference validation passed all checks:\n\nIL Config:\n- Structural sections present: policy, training, dataset, env\n- ACT hyperparameters match spec: chunk_size=100, n_obs_steps=1, dim_model=512, n_heads=8, n_encoder_layers=4, n_decoder_layers=7\n- dataset.repo_id='local/so101_teleop' matches params/data_pipeline.yaml\n- dataset.fps=30 matches params/data_pipeline.yaml\n- Training params match spec: lr=1e-5 (AdamW), batch_size=8, steps=100000, save_freq=25000\n\nRL Config:\n- Structural sections present: algorithm, environment, training, drive, domain_randomization, reward, network\n- Drive gains match params/control.yaml: stiffness=40.0, damping=4.0, max_effort=5.0\n- sim_dt=0.005 matches params/physics.yaml simulation.timestep\n- decimation=10 matches params/control.yaml\n- PPO hyperparameters match spec: lr=3e-4, gamma=0.99, lam=0.95, clip_range=0.2, entropy_coef=0.01, value_loss_coef=0.5\n- Domain randomization matches spec: mass ±20%, friction ±30%, actuator_gain ±15%\n- num_envs=1024 matches spec\n\nNo code changes required — verification-only subtask.",
+          "updated_at": "2026-03-01T07:29:28.415628+00:00"
         },
         {
           "id": "subtask-4-3",
@@ -243,7 +245,9 @@
             "command": "python3 training/il/train_act.py --help && python3 training/rl/train_rl.py --help && python3 training/eval/evaluate_policy.py --help && echo 'ALL CLI HELP OK'",
             "expected": "ALL CLI HELP OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "CLI help verification passed for all 3 Python scripts:\n\n1. training/il/train_act.py --help: ✅ All expected args present (--repo_id, --batch_size, --steps, --save_freq, --output_dir, --lr, --config, --data_pipeline_yaml)\n2. training/rl/train_rl.py --help: ✅ All expected args present (--task, --num_envs, --headless, --max_iterations, --checkpoint_freq, --output_dir, --seed, --config, --control_yaml)\n3. training/eval/evaluate_policy.py --help: ✅ All expected args present (--policy_type {il,rl} [required], --checkpoint_path [required], --task, --num_episodes, --max_steps, --headless, --success_threshold, --il_config, --rl_config)\n\nAll scripts:\n- Have proper Korean help descriptions\n- Follow argparse best practices (required args marked, default values documented)\n- Support --config overrides pointing to YAML config files\n- evaluate_policy.py correctly uses choices={il,rl} for --policy_type\n- No code changes required — verification-only subtask",
+          "updated_at": "2026-03-01T07:30:20.221335+00:00"
         }
       ]
     }
@@ -360,5 +364,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T07:26:41.766440+00:00"
+  "last_updated": "2026-03-01T07:30:20.221350+00:00"
 }
