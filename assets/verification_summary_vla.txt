@@ -1,0 +1,115 @@
+========================================================================
+Phase 7 VLA Extension Verification Summary Report
+Generated: 2026-03-01T07:54:04.378162+00:00
+Project: SO-ARM101 VLA Extension (instruction->action pipeline)
+========================================================================
+
+--- Test Suite Results ---
+
+Suite                                 Status   Passed   Failed  Skipped     Warn    Total
+-----------------------------------------------------------------------------------------------
+Static Code Verification                FAIL        9        6        0        0       15
+Pattern Compliance                      FAIL        0       27        0        0       27
+Unit Tests                              FAIL        0       19        0        0       19
+-----------------------------------------------------------------------------------------------
+TOTAL                                               9       52        0        0       61
+
+  * = non-critical (SKIP is acceptable)
+
+
+--- Acceptance Criteria Checklist ---
+
+   1. [ ] Dataset schema has 'task' instruction field (LeRobotDataset.save_episode(task=...) documented)
+       Test suite(s) failed
+   2. [ ] training/vla/README.md documents inference I/O contract (input: instruction+image+state -> output: 6-DOF action)
+       Test suite(s) failed
+   3. [ ] training/vla/inference.py implements VLAInference class with DummyVLA
+       Test suite(s) failed
+   4. [ ] training/vla/eval_in_sim.py implements simulation evaluation loop
+       Test suite(s) failed
+   5. [ ] DummyVLA pipeline end-to-end works (instruction->action returns correct shape)
+       Test suite(s) failed
+   6. [ ] Pipeline flow: instruction + observation -> predict() -> action -> sim step -> metrics
+       Test suite(s) failed
+
+Criteria: 0 passed, 6 failed, 0 skipped (runtime)
+
+
+--- Detailed Test Output ---
+
+>> Static Code Verification (test_vla_static.py)
+   Status: FAIL
+   [PASS] VLA directory exists
+   [FAIL] inference.py exists — File not found: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py
+   [FAIL] eval_in_sim.py exists — File not found: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py
+   [FAIL] __init__.py exists — File not found: /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/__init__.py
+   [PASS] VLA README.md exists
+   [PASS] datasets/README.md exists
+   [FAIL] inference.py syntax — Cannot syntax-check missing file: inference.py
+   [FAIL] eval_in_sim.py syntax — Cannot syntax-check missing file: eval_in_sim.py
+   [FAIL] __init__.py syntax — Cannot syntax-check missing file: __init__.py
+   [PASS] VLA README I/O contract
+   [PASS] VLA README model info
+   [PASS] VLA README action dimensions
+   [PASS] datasets/README.md task field
+   [PASS] datasets/README.md save_episode
+   [PASS] datasets/README.md instruction context
+
+>> Pattern Compliance (test_vla_patterns.py)
+   Status: FAIL
+   [FAIL] No print() in inference.py — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] No print() in eval_in_sim.py — File not found: eval_in_sim.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py)
+   [FAIL] logging imported in inference.py — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] logging imported in eval_in_sim.py — File not found: eval_in_sim.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py)
+   [FAIL] logging.getLogger() in inference.py — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] logging.getLogger() in eval_in_sim.py — File not found: eval_in_sim.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py)
+   [FAIL] Public functions have docstrings (inference.py) — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] Public functions have docstrings (eval_in_sim.py) — File not found: eval_in_sim.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py)
+   [FAIL] Classes have docstrings (inference.py) — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] Module docstring (inference.py) — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] Module docstring (eval_in_sim.py) — File not found: eval_in_sim.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py)
+   [FAIL] PROJECT_ROOT pattern (inference.py) — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] PROJECT_ROOT pattern (eval_in_sim.py) — File not found: eval_in_sim.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py)
+   [FAIL] Heavy imports guarded (inference.py) — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] Heavy imports guarded (eval_in_sim.py) — File not found: eval_in_sim.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py)
+   [FAIL] VLAInference class exists — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] VLAInference has predict() — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] VLAInference.predict() raises NotImplementedError — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] VLAInference.predict() signature — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] DummyVLA class exists — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] DummyVLA inherits VLAInference — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] DummyVLA has predict() — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] SmolVLAWrapper class exists — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] SmolVLAWrapper inherits VLAInference — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] SmolVLAWrapper has predict() — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] snake_case functions (inference.py) — File not found: inference.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/inference.py)
+   [FAIL] snake_case functions (eval_in_sim.py) — File not found: eval_in_sim.py (expected at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py)
+
+>> Unit Tests (test_vla_units.py)
+   Status: FAIL
+   [ERROR] DummyVLA.predict() returns ndarray — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA.predict() shape (6,) — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA.predict() dtype float32 — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA.predict() returns zeros — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA.predict() zeros allclose — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA accepts str instruction — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA accepts image (480,640,3) — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA accepts state (6,) — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA accepts all spec inputs — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] VLAInference.predict() raises NotImplementedError — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] VLAInference base class behavior — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA is subclass of VLAInference — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] DummyVLA isinstance of VLAInference — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [FAIL] eval_in_sim importable without Isaac Sim — eval_in_sim.py not found at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py
+   [FAIL] eval_in_sim has module attributes — eval_in_sim.py not found at /home/cgxr/Documents/DK/DTR/soarm_stack/.auto-claude/worktrees/tasks/verify-009-phase7-vla-extension/training/vla/eval_in_sim.py
+   [ERROR] I/O contract: instruction → 6-DOF action — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] I/O contract: action is finite — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] I/O contract: consistent predictions — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+   [ERROR] I/O contract: 6-DOF joint positions — Cannot import VLA classes from inference.py: No module named 'inference'. Ensure training/vla/inference.py exists and defines VLAInference and DummyVLA.
+
+
+========================================================================
+VERDICT: FAIL
+
+Verification failed: 3 critical suite(s) failed, 52 total test(s) failed, 6 acceptance criteria not met.
+========================================================================
