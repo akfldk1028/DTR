@@ -112,7 +112,9 @@
             "command": "git show auto-claude/005-phase3-ssot:robot_description/README.md > /tmp/verify_rdesc.md && python3 -c \"\nimport sys\ncontent = open('/tmp/verify_rdesc.md').read()\nerrs = []\n# 1. URDF source\nfor kw in ['SO-ARM100', 'onshape-to-robot', 'TheRobotStudio']:\n    if kw not in content:\n        errs.append(f'missing source reference: {kw}')\n# 2. Joint names in table\nfor jn in ['shoulder_pan', 'shoulder_lift', 'elbow_flex', 'wrist_flex', 'wrist_roll', 'gripper']:\n    if jn not in content:\n        errs.append(f'missing joint in table: {jn}')\n# 3. Link masses in table\nfor link in ['base', 'shoulder', 'upper_arm', 'lower_arm', 'wrist', 'gripper', 'jaw']:\n    if link not in content:\n        errs.append(f'missing link in mass table: {link}')\n# 4. STL files listed\nstl_count = content.count('.stl')\nif stl_count < 8:\n    errs.append(f'only {stl_count} STL file references, expected >= 8')\n# 5. Cross-references\nfor ref in ['params/control.yaml', 'params/physics.yaml']:\n    if ref not in content:\n        errs.append(f'missing cross-reference to {ref}')\nif errs:\n    print('FAIL: ' + '; '.join(errs))\n    sys.exit(1)\nprint('OK: robot_description/README.md validated')\n\"",
             "expected": "OK: robot_description/README.md validated"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "All 5 verification checks PASSED against auto-claude/005-phase3-ssot branch: (1) URDF source references present: SO-ARM100, TheRobotStudio, onshape-to-robot, (2) Joint summary table has all 6 joints: shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper, (3) Link/mass summary table has all 7 links: base, shoulder, upper_arm, lower_arm, wrist, gripper, jaw with correct masses summing to 0.632kg, (4) 8+ STL file references found (base.stl, shoulder.stl, upper_arm.stl, lower_arm.stl, wrist.stl, wrist_roll.stl, gripper.stl, jaw.stl), (5) Cross-references to params/control.yaml and params/physics.yaml present",
+          "updated_at": "2026-03-01T06:07:15.091893+00:00"
         },
         {
           "id": "subtask-3-2",
@@ -320,5 +322,5 @@
     }
   },
   "qa_signoff": null,
-  "last_updated": "2026-03-01T06:05:24.777533+00:00"
+  "last_updated": "2026-03-01T06:07:15.091900+00:00"
 }
