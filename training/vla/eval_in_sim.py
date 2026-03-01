@@ -38,6 +38,12 @@ from pathlib import Path
 
 import yaml
 
+# Add project root to sys.path so the script can be run directly
+# (e.g. python training/vla/eval_in_sim.py --dry-run)
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
 # Isaac Sim imports are guarded so the script can be
 # syntax-checked and --help can run without these heavy dependencies.
 try:
